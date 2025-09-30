@@ -1,0 +1,321 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Track Editor for F1 Sim</title>
+  <style>
+    body { margin: 0; font-family: Arial; background: #222; color: white; }
+    #canvas { border: 1px solid #fff; cursor: crosshair; display: block; margin: 10px auto; background: #000; }
+    #controls { text-align: center; margin: 10px; }
+    button { padding: 10px 20px; margin: 5px; background: #ff4400; color: white; border: none; cursor: pointer; }
+    button.active { background: #44ff00; color: black; }
+    #export { background: #44ff00; color: black; font-family: monospace; }
+    #output { width: 100%; height: 200px; margin-top: 10px; font-family: monospace; background: #111; color: #0f0; padding: 10px; }
+    #saveInput { padding: 5px; margin-left: 10px; }
+
+    /* NEW STYLE FOR ZOOM GROUP */
+    .zoom-controls {
+        display: inline-block;
+        margin-left: 20px;
+        border-left: 1px solid #555;
+        padding-left: 20px;
+    }
+    .zoom-controls button {
+        width: 100px;
+        padding: 8px 15px;
+        margin: 5px;
+    }
+  </style>
+</head>
+<body>
+  <h1 style="text-align: center;">F1 Track Editor</h1>
+  <p style="text-align: center;">Use buttons to switch modes. In Add Mode: Click to add points. In Edit Mode: Drag points (click and hold on points). Close loop by dragging last point near first (snaps automatically).</p>
+  <canvas id="canvas" width="800" height="600"></canvas>
+  <div id="controls">
+    <button id="addBtn" class="active" onclick="setMode('add')">Add New Point</button>
+    <button id="editBtn" onclick="setMode('edit')">Drag/Edit Points</button>
+    <button onclick="clearPoints()">Clear All</button>
+    <button onclick="exportPoints()">Export Track Points</button>
+    
+    <div class="zoom-controls">
+        <button onclick="zoom(1.2)">Zoom In +</button>
+        <button onclick="zoom(1/1.2)">Zoom Out -</button>
+    </div>
+
+    <input type="text" id="saveInput" placeholder="Enter Track Name" value="Custom Track 1">
+    <button onclick="saveTrack()">Save Track</button>
+    <button onclick="loadTrackList()">Load Tracks</button>
+    <select id="loadSelect" onchange="loadSelectedTrack()"></select>
+  </div>
+  <textarea id="output" readonly placeholder="Exported code will appear here..."></textarea>
+
+  <script>
+    const canvas = document.getElementById('canvas');
+    const ctx = canvas.getContext('2d');
+    let scale = 4; // Pixels per unit (adjust for zoom) - MADE LET for modification
+    const offsetX = canvas.width / 2;
+    const offsetY = canvas.height / 2;
+    // NOTE: hitRadius must now be calculated inside mouse events to use the current scale
+    
+    let points = []; // Array of {x, z} (y=0 fixed)
+    let draggingIndex = -1;
+    let isDragging = false;
+    let mode = 'add'; // 'add' or 'edit'
+
+    // --- ZOOM FUNCTION (NEW) ---
+    function zoom(factor) {
+        // Prevent scale from becoming too small or too large
+        scale = Math.max(0.5, Math.min(scale * factor, 30)); 
+        redraw();
+    }
+    
+    // --- TRACK STORAGE UTILITIES ---
+
+    function getTrackNames() {
+      try {
+        return JSON.parse(localStorage.getItem('trackNames')) || ['Monza Standard'];
+      } catch (e) {
+        return ['Monza Standard'];
+      }
+    }
+
+    function saveTrack() {
+      const trackName = document.getElementById('saveInput').value.trim();
+      if (!trackName || points.length < 3) {
+        alert('Please enter a name and add at least 3 points.');
+        return;
+      }
+
+      // Store the points array
+      localStorage.setItem(`trackData_${trackName}`, JSON.stringify(points.map(p => ({ x: p.x.toFixed(1), z: p.z.toFixed(1) }))));
+
+      // Update the list of track names
+      const trackNames = getTrackNames().filter(name => name !== 'Monza Standard'); // Keep custom only
+      if (!trackNames.includes(trackName)) {
+        trackNames.push(trackName);
+        localStorage.setItem('trackNames', JSON.stringify(trackNames));
+      }
+      alert(`Track '${trackName}' saved successfully!`);
+      loadTrackList();
+    }
+
+    function loadTrack(name) {
+      if (name === 'Monza Standard') {
+        // Load the default points (approximation of the ones in TrackBuilder.js)
+        points = [
+            { x: 52.5, z: -33.0 }, { x: 51.0, z: 17.8 }, { x: 35.0, z: 52.0 },
+            { x: -23.3, z: 55.0 }, { x: -48.0, z: 42.8 }, { x: -59.5, z: 20.5 },
+            { x: -52.3, z: -16.0 }, { x: -43.3, z: -52.2 }, { x: 7.3, z: -52.5 },
+            { x: 30.8, z: -52.0 }, { x: 39.5, z: -50.5 }, { x: 52.5, z: -33.2 }
+        ].map(p => ({ x: p.x, z: -p.z })); // Flip Z to match canvas/sim convention
+      } else {
+        const data = localStorage.getItem(`trackData_${name}`);
+        if (data) {
+          points = JSON.parse(data).map(p => ({ x: parseFloat(p.x), z: parseFloat(p.z) }));
+        } else {
+          alert(`Track '${name}' not found.`);
+          return;
+        }
+      }
+      document.getElementById('saveInput').value = name;
+      redraw();
+      // Removed alert for smoother UX
+    }
+
+    function loadTrackList() {
+      const trackNames = getTrackNames();
+      const select = document.getElementById('loadSelect');
+      select.innerHTML = ''; // Clear existing options
+      trackNames.forEach(name => {
+        const option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        select.appendChild(option);
+      });
+    }
+
+    function loadSelectedTrack() {
+      const select = document.getElementById('loadSelect');
+      const selectedTrackName = select.value;
+      if (selectedTrackName) {
+        loadTrack(selectedTrackName);
+      }
+    }
+    
+    // --- CANVAS AND EDITOR LOGIC ---
+
+    // Set mode and update UI/cursor
+    function setMode(newMode) {
+      mode = newMode;
+      document.getElementById('addBtn').classList.toggle('active', newMode === 'add');
+      document.getElementById('editBtn').classList.toggle('active', newMode === 'edit');
+      canvas.style.cursor = newMode === 'add' ? 'crosshair' : 'grab';
+    }
+
+    // Draw a point (larger visual size)
+    function drawPoint(x, z, isDragging = false) {
+      const px = offsetX + x * scale;
+      const pz = offsetY - z * scale; // Invert Z for screen coords
+      ctx.beginPath();
+      ctx.arc(px, pz, 8, 0, Math.PI * 2);
+      ctx.fillStyle = isDragging ? '#ff0' : '#fff';
+      ctx.fill();
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 2;
+      ctx.stroke();
+    }
+
+    // Draw the curve preview (simple line through points for editing; sim uses CatmullRom for smoothness)
+    function drawCurve() {
+      if (points.length < 2) return;
+      ctx.strokeStyle = '#0f0';
+      ctx.lineWidth = 3;
+      ctx.beginPath();
+      let px = offsetX + points[0].x * scale;
+      let pz = offsetY - points[0].z * scale;
+      ctx.moveTo(px, pz);
+      for (let i = 1; i < points.length; i++) {
+        px = offsetX + points[i].x * scale;
+        pz = offsetY - points[i].z * scale;
+        ctx.lineTo(px, pz);
+      }
+      ctx.stroke();
+    }
+
+    // Draw grid for reference
+    function drawGrid() {
+      ctx.strokeStyle = '#333';
+      ctx.lineWidth = 1;
+      const gridSize = 50;
+      
+      // Calculate world units to draw based on current scale
+      const worldWidth = canvas.width / scale / 2;
+      const worldHeight = canvas.height / scale / 2;
+
+      for (let x = -worldWidth; x <= worldWidth; x += gridSize / scale) {
+        ctx.beginPath();
+        ctx.moveTo(offsetX + x * scale, 0);
+        ctx.lineTo(offsetX + x * scale, canvas.height);
+        ctx.stroke();
+      }
+      for (let z = -worldHeight; z <= worldHeight; z += gridSize / scale) {
+        ctx.beginPath();
+        ctx.moveTo(0, offsetY - z * scale);
+        ctx.lineTo(canvas.width, offsetY - z * scale);
+        ctx.stroke();
+      }
+    }
+
+    // Redraw everything
+    function redraw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawGrid();
+      drawCurve();
+      points.forEach((p, i) => drawPoint(p.x, p.z, i === draggingIndex));
+    }
+
+    // Mouse events for adding/dragging
+    canvas.addEventListener('mousedown', (e) => {
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseZ = e.clientY - rect.top;
+      const worldX = (mouseX - offsetX) / scale;
+      const worldZ = (offsetY - mouseZ) / scale;
+
+      if (mode === 'add') {
+        // Add new point
+        points.push({x: worldX, z: worldZ});
+      } else if (mode === 'edit') {
+        // Check if clicking on a point to drag (using pixel-based hit detection for accuracy)
+        draggingIndex = -1;
+        for (let i = 0; i < points.length; i++) {
+          const px = offsetX + points[i].x * scale;
+          const pz = offsetY - points[i].z * scale;
+          const dx = mouseX - px;
+          const dz = mouseZ - pz;
+          // 10-pixel hit radius
+          if (Math.sqrt(dx*dx + dz*dz) < 10) { 
+            draggingIndex = i;
+            isDragging = true;
+            canvas.style.cursor = 'grabbing'; // Visual feedback
+            break;
+          }
+        }
+      }
+      redraw();
+    });
+
+    canvas.addEventListener('mousemove', (e) => {
+      if (mode !== 'edit' || !isDragging || draggingIndex === -1) return;
+      const rect = canvas.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseZ = e.clientY - rect.top;
+      const worldX = (mouseX - offsetX) / scale;
+      const worldZ = (offsetY - mouseZ) / scale;
+
+      // Special handling for last point: Snap to first if close (within 0.1 units)
+      if (draggingIndex === points.length - 1 && points.length > 1) {
+        const dx = worldX - points[0].x;
+        const dz = worldZ - points[0].z;
+        if (Math.sqrt(dx*dx + dz*dz) < 0.1) {
+          points[draggingIndex].x = points[0].x;
+          points[draggingIndex].z = points[0].z;
+        } else {
+          points[draggingIndex].x = worldX;
+          points[draggingIndex].z = worldZ;
+        }
+      } else {
+        points[draggingIndex].x = worldX;
+        points[draggingIndex].z = worldZ;
+      }
+      redraw();
+    });
+
+    canvas.addEventListener('mouseup', () => {
+      if (isDragging) {
+        isDragging = false;
+        canvas.style.cursor = mode === 'add' ? 'crosshair' : 'grab';
+      }
+    });
+
+    // Prevent dragging outside canvas
+    canvas.addEventListener('mouseleave', () => {
+      isDragging = false;
+      canvas.style.cursor = mode === 'add' ? 'crosshair' : 'grab';
+    });
+
+    // Clear points
+    function clearPoints() {
+      points = [];
+      redraw();
+    }
+
+    // Export as JS array for main sim
+    function exportPoints() {
+      if (points.length === 0) {
+        alert('Add some points first!');
+        return;
+      }
+      const jsCode = `const trackPoints = [
+  ${points.map(p => `new THREE.Vector3(${p.x.toFixed(1)}, 0, ${p.z.toFixed(1)})`).join(',\n  ')}
+];`;
+      document.getElementById('output').value = jsCode;
+    }
+
+    // Initial load and draw
+    loadTrackList(); // Load track names on startup
+    loadTrack('Monza Standard'); // Load default track initially
+    redraw();
+    
+    // Expose functions globally for HTML
+    window.setMode = setMode;
+    window.clearPoints = clearPoints;
+    window.exportPoints = exportPoints;
+    window.saveTrack = saveTrack;
+    window.loadTrackList = loadTrackList;
+    window.loadSelectedTrack = loadSelectedTrack;
+    window.zoom = zoom; // Expose the new zoom function
+
+  </script>
+</body>
+</html>

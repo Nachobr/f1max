@@ -1,0 +1,77 @@
+// js/Utils.js
+import * as THREE from "three";
+import { TRACKS } from './Config.js'; // Import the default tracks
+
+// Reusable vectors for function calls
+const closestPoint = new THREE.Vector3();
+const tangent = new THREE.Vector3();
+const binormal = new THREE.Vector3();
+const tempVector = new THREE.Vector3();
+
+// ✅ --- NEW FUNCTION --- ✅
+/**
+ * Gets all available track names by combining defaults with custom tracks from localStorage.
+ * @returns {string[]} An array of all unique track names.
+ */
+export function getAvailableTracks() {
+    // A Set automatically handles duplicates, so we start with the default tracks.
+    const allTracks = new Set(TRACKS);
+
+    // Loop through everything in localStorage to find saved tracks.
+    for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key.startsWith('trackData_')) {
+            // Extracts "MyCoolTrack" from a key like "trackData_MyCoolTrack"
+            const trackName = key.substring(10);
+            allTracks.add(trackName);
+        }
+    }
+
+    // Convert the Set to an array and sort it for a clean, alphabetical list.
+    return Array.from(allTracks).sort();
+}
+
+
+// --- TIME FORMATTING UTILITY (No changes) ---
+export function formatTime(ms) {
+    if (ms === null || isNaN(ms) || ms === Infinity || ms === 0) {
+        return '--:--.---';
+    }
+    const totalSeconds = ms / 1000;
+    const minutes = Math.floor(totalSeconds / 60);
+    const seconds = Math.floor(totalSeconds % 60);
+    const milliseconds = Math.floor(ms % 1000);
+    return `${String(minutes)}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+}
+
+// --- TRACK GEOMETRY UTILITY (No changes) ---
+export function getTrackProperties(position, curve, divisions, lastT) {
+    let closestPointT = lastT;
+    let minDistanceSq = Infinity;
+    const searchRange = 50; 
+    const currentI = Math.floor(lastT * divisions);
+
+    for (let i = -searchRange; i <= searchRange; i++) {
+        let index = currentI + i;
+        if (index < 0) index += divisions;
+        else if (index > divisions) index -= divisions;
+        
+        const t = index / divisions; 
+        curve.getPointAt(t, closestPoint);
+        const distanceSq = closestPoint.distanceToSquared(position);
+        
+        if (distanceSq < minDistanceSq) {
+            minDistanceSq = distanceSq;
+            closestPointT = t;
+        }
+    }
+
+    curve.getPointAt(closestPointT, closestPoint);
+    curve.getTangentAt(closestPointT, tangent);
+    const normal = new THREE.Vector3(0, 1, 0);
+    binormal.crossVectors(normal, tangent).normalize();
+    tempVector.copy(position).sub(closestPoint);
+    const lateralDistance = tempVector.dot(binormal);
+
+    return { lateralDistance, minDistanceSq, binormal, closestPoint, closestT: closestPointT };
+}
