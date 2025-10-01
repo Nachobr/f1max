@@ -1,4 +1,3 @@
-// js/main.js
 import * as THREE from 'three';
 import { scene, camera, renderer } from './SceneSetup.js';
 import { gameState } from './State.js';
@@ -10,11 +9,10 @@ import { NetworkManager } from './NetworkManager.js';
 import { createF1Car } from './CarModel.js';
 import { carState, updatePhysics } from './CarPhysics.js';
 import { trackData, roadHalfWidth } from './TrackBuilder.js';
-import { getAvailableTracks } from './Utils.js'; // Import the new function
+import { getAvailableTracks } from './Utils.js';
 
 document.addEventListener('DOMContentLoaded', () => {
 
-    // --- INITIALIZATION ---
     const player = createF1Car(CONFIG.PLAYER_COLOR);
     player.name = "playerCar";
     scene.add(player);
@@ -26,14 +24,12 @@ document.addEventListener('DOMContentLoaded', () => {
     initGameManager(uiManager, audioManager, networkManager);
     gameState.networkManager = networkManager;
 
-    // --- CORE EVENT LISTENERS ---
     window.addEventListener("keydown", e => { gameState.keys[e.key.toLowerCase()] = true; if (e.key.toLowerCase() === 'p') togglePause(); });
     window.addEventListener("keyup", e => gameState.keys[e.key.toLowerCase()] = false);
     uiManager.resumeButton.addEventListener('click', () => togglePause());
     document.getElementById('mute-button').addEventListener('click', () => audioManager.toggleMute());
-    uiManager.editorButton.addEventListener('click', () => { window.open('trackEditor.html', '_blank'); });
+    if(uiManager.editorButton) uiManager.editorButton.addEventListener('click', () => { window.open('trackEditor.html', '_blank'); });
 
-    // --- NETWORK MENU EVENT LISTENERS ---
     uiManager.createRoomButton.addEventListener('click', () => {
         const playerName = uiManager.playerNameInput.value || 'Player';
         const selectedTrack = uiManager.trackSelectNetwork.value;
@@ -46,7 +42,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     uiManager.startGameButton.addEventListener('click', () => networkManager.startGame());
 
-    // --- NETWORK MANAGER EVENT HANDLERS ---
     networkManager.addEventListener('roomJoined', (event) => {
         const { roomId, players, track, hostId } = event.detail;
         gameState.isMultiplayer = !networkManager.singlePlayerMode;
@@ -62,19 +57,15 @@ document.addEventListener('DOMContentLoaded', () => {
         uiManager.updateStartButtonVisibility(hostId, networkManager.clientId);
     });
     networkManager.addEventListener('gameStarted', () => {
-        console.log('Game started, starting animation loop.');
         uiManager.hideWaitingScreen();
         animate();
     });
 
-    // --- INITIAL AUDIO & CONNECTION SETUP ---
     uiManager.audioButton.addEventListener('click', async () => {
         try {
             await audioManager.init();
             uiManager.audioButton.style.display = 'none';
-
             const connected = await networkManager.connect();
-            
             if (connected) {
                 uiManager.showNetworkMenu();
             } else {
@@ -85,20 +76,14 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, 1500);
             }
         } catch (err) {
-            console.error("Initialization failed.", err);
             alert("Could not initialize the game. Please check browser permissions and refresh.");
         }
     });
     
-    // ✅ FIX: Use the new function to populate the dropdown with ALL available tracks.
     const availableTracks = getAvailableTracks();
     uiManager.populateTrackSelect(availableTracks);
 
-    // ✅ FIX: The entire animate loop is now inside DOMContentLoaded to ensure access to all variables.
-    // --- CORE ANIMATION LOOP ---
     let frameCounter = 0;
-    const forwardVector = new THREE.Vector3();
-    const lookAtVector = new THREE.Vector3();
     const networkTickRate = 1000 / CONFIG.INPUT_SEND_RATE_HZ;
     let lastNetworkUpdate = 0;
 
@@ -109,19 +94,26 @@ document.addEventListener('DOMContentLoaded', () => {
         }
         requestAnimationFrame(animate);
         
-        const { position, rotationAngle, velocityAngle, speed, isWrongWay } = updatePhysics(gameState.keys, carState, trackData.curve, trackData.divisions, roadHalfWidth);
+        const { position, rotationAngle, speed, isWrongWay } = updatePhysics(gameState.keys, carState, trackData.curve, trackData.divisions, roadHalfWidth);
         player.position.copy(position);
         player.rotation.y = rotationAngle;
 
         audioManager.update(speed);
 
-        const carForwardAngle = rotationAngle - Math.PI / 2;
-        forwardVector.set(Math.cos(carForwardAngle), 0, Math.sin(carForwardAngle));
-        const idealPosition = position.clone().add(forwardVector.multiplyScalar(-12)).add(new THREE.Vector3(0, 6, 0));
+        // --- ✅ CAMERA UPDATE (THE FIX) ✅ ---
+        // 1. Get the car's forward direction as a vector.
+        const carDirection = player.getWorldDirection(new THREE.Vector3());
+
+        // 2. Calculate the ideal camera position: 12 units behind and 6 units above the car.
+        const cameraOffset = carDirection.multiplyScalar(-12).add(new THREE.Vector3(0, 6, 0));
+        const idealPosition = player.position.clone().add(cameraOffset);
+        
+        // 3. Smoothly move (interpolate) the camera towards that ideal position.
         camera.position.lerp(idealPosition, 0.1);
-        const lookAtAngle = velocityAngle - Math.PI / 2;
-        lookAtVector.set(Math.cos(lookAtAngle), 0, Math.sin(lookAtAngle));
-        camera.lookAt(position.clone().add(lookAtVector.multiplyScalar(5)));
+
+        // 4. Always make the camera look directly at the car's current position for stability.
+        camera.lookAt(player.position);
+        // --- End of Fix ---
 
         if (gameState.isMultiplayer && networkManager.isConnected) {
             if (currentTime - lastNetworkUpdate > networkTickRate) {
