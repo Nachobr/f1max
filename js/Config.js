@@ -9,11 +9,11 @@ export const CONFIG = {
     TOTAL_LAPS: 5,
 
     // Networking
-    SERVER_URL: 'ws://localhost:8080', // <-- CHANGE FOR PRODUCTION
+    SERVER_URL: 'ws://192.168.100.58:8080', // <-- CHANGE FOR PRODUCTION
     INPUT_SEND_RATE_HZ: 12, // Send input 12 times per second
 
     // Audio
-    DEFAULT_VOLUME: 0.5,
+    DEFAULT_VOLUME: 1.5,
 
     // Physics (Example - you can move more constants here)
     MAX_SPEED: 3.0,

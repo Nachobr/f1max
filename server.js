@@ -1,8 +1,12 @@
+// server.js
 const WebSocket = require('ws');
 const { v4: uuidv4 } = require('uuid');
 
-const wss = new WebSocket.Server({ port: 8080 });
+const CONFIG = {
+    INPUT_SEND_RATE_HZ: 12,
+};
 
+const wss = new WebSocket.Server({ port: 8080 });
 const rooms = {};
 const clients = {};
 
@@ -10,93 +14,82 @@ console.log('🏎️  F1 Multiplayer Server is running on ws://localhost:8080');
 
 wss.on('connection', ws => {
     const clientId = uuidv4();
-    clients[clientId] = { ws, roomId: null };
-    console.log(`Client ${clientId.substring(0, 8)} connected.`);
-
+    clients[clientId] = { ws, roomId: null, lastState: null }; // ✅ ADD lastState
     ws.send(JSON.stringify({ type: 'welcome', clientId }));
+    ws.on('message', message => handleMessage(clientId, message));
+    ws.on('close', () => handleDisconnect(clientId));
+});
 
-    ws.on('message', message => {
+function handleMessage(clientId, message) {
+    try {
         const data = JSON.parse(message);
-        const player = clients[clientId];
-
+        console.log(`Received ${data.type} from ${clientId.substring(0, 8)}`); // ✅ DEBUG
+        
         switch (data.type) {
-            case 'createRoom':
-                handleCreateRoom(clientId, data);
-                break;
-            case 'joinRoom':
-                handleJoinRoom(clientId, data);
-                break;
-            case 'startGame':
-                handleStartGame(clientId);
-                break;
+            case 'createRoom': handleCreateRoom(clientId, data); break;
+            case 'joinRoom': handleJoinRoom(clientId, data); break;
+            case 'startGame': handleStartGame(clientId); break;
             case 'input':
-                if (player.roomId && rooms[player.roomId]?.players[clientId]) {
+                const player = clients[clientId];
+                if (player?.roomId && rooms[player.roomId]?.players[clientId]) {
+                    // ✅ FIX: Store the state properly
                     rooms[player.roomId].players[clientId].state = data.state;
+                    // ✅ ALSO store in client for backup
+                    clients[clientId].lastState = data.state;
                 }
                 break;
         }
-    });
-
-    ws.on('close', () => {
-        handleDisconnect(clientId);
-    });
-});
+    } catch (error) {
+        console.error('Error handling message:', error);
+    }
+}
 
 function handleCreateRoom(clientId, data) {
     const roomId = Math.random().toString(36).substring(2, 7).toUpperCase();
-    const room = {
-        id: roomId,
-        hostId: clientId, // The creator is the host
-        track: data.track,
-        gameStarted: false,
-        players: {},
-    };
-    rooms[roomId] = room;
-
-    console.log(`Room ${roomId} created by ${clientId.substring(0, 8)} on track ${data.track}.`);
+    rooms[roomId] = { id: roomId, hostId: clientId, track: data.track, gameStarted: false, players: {} };
+    console.log(`Room ${roomId} created by ${clientId.substring(0, 8)}`);
     handleJoinRoom(clientId, { roomId, playerName: data.playerName });
 }
 
 function handleJoinRoom(clientId, data) {
     const { roomId, playerName } = data;
     const room = rooms[roomId];
-    const player = clients[clientId];
-
-    if (!room) {
-        player.ws.send(JSON.stringify({ type: 'error', message: 'Room not found' }));
-        return;
+    if (!room) { 
+        clients[clientId]?.ws.send(JSON.stringify({ type: 'error', message: 'Room not found' })); 
+        return; 
+    }
+    
+    if (clients[clientId].roomId) { 
+        handleDisconnect(clientId, true); 
     }
 
-    if (player.roomId) {
-       handleDisconnect(clientId, true);
-    }
-
-    player.roomId = roomId;
-    room.players[clientId] = {
-        id: clientId,
-        name: playerName,
-        state: {}
+    clients[clientId].roomId = roomId;
+    room.players[clientId] = { 
+        id: clientId, 
+        name: playerName, 
+        state: { position: { x: 0, z: 0 }, rotationAngle: 0 } // ✅ INITIAL STATE
     };
-
-    console.log(`Client ${clientId.substring(0, 8)} (${playerName}) joined room ${roomId}.`);
-
+    
     const playersList = Object.values(room.players).map(p => ({ id: p.id, name: p.name }));
+    const message = { 
+        type: 'joined', 
+        roomId, 
+        players: playersList, 
+        track: room.track, 
+        hostId: room.hostId 
+    };
     
-    // ✅ FIX: Send the hostId to the player who just joined
-    player.ws.send(JSON.stringify({ type: 'joined', roomId, players: playersList, track: room.track, hostId: room.hostId }));
+    console.log(`Player ${playerName} (${clientId.substring(0, 8)}) joined room ${roomId}`);
     
-    // ✅ FIX: Send the hostId to everyone else in the room
-    broadcastToRoom(roomId, { type: 'playerJoined', players: playersList, hostId: room.hostId }, clientId);
+    clients[clientId].ws.send(JSON.stringify(message));
+    broadcastToRoom(roomId, { ...message, type: 'playerJoined' }, clientId);
 }
 
 function handleStartGame(clientId) {
-    const player = clients[clientId];
-    const room = rooms[player.roomId];
-
-    // This check now works because the client knows who the host is and will only send this message if it's the host.
+    const room = rooms[clients[clientId]?.roomId];
     if (room && room.hostId === clientId && !room.gameStarted) {
         room.gameStarted = true;
-        console.log(`Game starting in room ${room.id}.`);
+        console.log(`Game started in room ${room.id}`);
         broadcastToRoom(room.id, { type: 'gameStarted' });
     }
 }
@@ -104,62 +97,83 @@ function handleStartGame(clientId) {
 function handleDisconnect(clientId, isRejoining = false) {
     const player = clients[clientId];
     if (!player) return;
-
     const roomId = player.roomId;
     const room = rooms[roomId];
-
     if (room) {
         delete room.players[clientId];
         const playersList = Object.values(room.players).map(p => ({ id: p.id, name: p.name }));
-
         if (playersList.length === 0) {
             delete rooms[roomId];
-            console.log(`Room ${roomId} is empty and has been closed.`);
+            console.log(`Room ${roomId} deleted (no players left)`);
         } else {
-            // If the host left, assign a new host
-            if (room.hostId === clientId) {
-                room.hostId = playersList[0].id;
+            if (room.hostId === clientId) { 
+                room.hostId = playersList[0].id; 
+                console.log(`New host for room ${roomId}: ${playersList[0].name}`);
             }
-            // ✅ FIX: Send the new hostId to the remaining players
             broadcastToRoom(roomId, { type: 'playerLeft', players: playersList, hostId: room.hostId });
         }
     }
-
     delete clients[clientId];
-    if (!isRejoining) {
-        console.log(`Client ${clientId.substring(0, 8)} disconnected.`);
-    }
+    if (!isRejoining) console.log(`Client ${clientId.substring(0, 8)} disconnected.`);
 }
 
 function broadcastToRoom(roomId, message, excludeClientId = null) {
     const room = rooms[roomId];
     if (!room) return;
-
     const messageString = JSON.stringify(message);
-
+    let sentCount = 0;
+    
     for (const clientId in room.players) {
         if (clientId !== excludeClientId) {
-            clients[clientId]?.ws.send(messageString);
+            const client = clients[clientId];
+            if (client && client.ws.readyState === WebSocket.OPEN) {
+                client.ws.send(messageString);
+                sentCount++;
+            }
         }
     }
+    console.log(`Broadcast ${message.type} to ${sentCount} players in room ${roomId}`);
 }
 
-// Server-side game loop (no changes needed here)
+// ✅ FIXED: Proper state collection and broadcasting
 setInterval(() => {
     for (const roomId in rooms) {
         const room = rooms[roomId];
         if (room.gameStarted) {
             const states = {};
-            for(const clientId in room.players) {
+            let hasValidStates = false;
+            
+            for (const clientId in room.players) {
                 const player = room.players[clientId];
-                if (player.state && player.state.position) {
+                // ✅ FIX: Use the state stored in the room player object
+                if (player.state && player.state.position && player.state.rotationAngle !== undefined) {
                     states[clientId] = {
                         x: player.state.position.x,
                         z: player.state.position.z,
+                        rotY: player.state.rotationAngle
                     };
+                    hasValidStates = true;
+                } else {
+                    // ✅ FIX: Use backup state from client or default
+                    const client = clients[clientId];
+                    if (client && client.lastState) {
+                        states[clientId] = {
+                            x: client.lastState.position.x,
+                            z: client.lastState.position.z,
+                            rotY: client.lastState.rotationAngle
+                        };
+                        hasValidStates = true;
+                    } else {
+                        // Default state
+                        states[clientId] = { x: 0, z: 0, rotY: 0 };
+                    }
                 }
             }
-            broadcastToRoom(roomId, { type: 'serverTick', players: states });
+            
+            if (hasValidStates) {
+                console.log(`Room ${roomId} broadcasting states for players:`, Object.keys(states));
+                broadcastToRoom(roomId, { type: 'serverTick', players: states });
+            }
         }
     }
-}, 1000 / 12);
+}, 1000 / CONFIG.INPUT_SEND_RATE_HZ);

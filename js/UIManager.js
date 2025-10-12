@@ -5,26 +5,36 @@ import { gameState } from './State.js';
 export class UIManager {
     constructor(networkManager) {
         this.networkManager = networkManager;
+        
+        // --- ✅ DOM REFERENCES (Synchronized with index.html) ---
         this.hud = document.getElementById('hud');
         this.warning = document.getElementById('warning');
         this.pauseMenu = document.getElementById('pauseMenu');
         this.networkMenu = document.getElementById('networkMenu');
         this.audioButton = document.getElementById('audio-init-button');
+
+        // Waiting Screen
         this.waitingScreen = document.getElementById('waiting-for-players');
         this.playerList = document.getElementById('player-list');
         this.roomIdDisplay = document.getElementById('room-id-display');
         this.startGameButton = document.getElementById('start-game-button');
+
+        // HUD Elements
         this.hudLapElement = document.getElementById('hud-lap');
         this.hudCurrentTimeElement = document.getElementById('hud-current-time');
         this.hudLastTimeElement = document.getElementById('hud-last-time');
         this.hudBestTimeElement = document.getElementById('hud-best-time');
+        
+        // Buttons
         this.resumeButton = document.getElementById('resume-button');
+        this.editorButton = document.getElementById('editor-button');
+        this.createRoomButton = document.getElementById('create-room-button');
+        this.joinRoomButton = document.getElementById('join-room-button');
+
+        // Inputs
         this.playerNameInput = document.getElementById('playerNameInput');
         this.trackSelectNetwork = document.getElementById('trackSelect-network');
-        this.createRoomButton = document.getElementById('create-room-button');
         this.roomIdInput = document.getElementById('roomIdInput');
-        this.joinRoomButton = document.getElementById('join-room-button');
-        this.editorButton = document.getElementById('editor-button');
     }
 
     showSinglePlayerMessage() {
@@ -38,7 +48,6 @@ export class UIManager {
 
     showWaitingForPlayersScreen(roomId, players, hostId, clientId) {
         if (this.networkManager.singlePlayerMode) {
-            // ✅ FIX: Show a disabled "Starting..." button for single-player.
             this.roomIdDisplay.textContent = 'SINGLE PLAYER';
             this.playerList.innerHTML = `<li>${players[0].name}</li>`;
             this.startGameButton.textContent = 'Starting...';
@@ -64,7 +73,7 @@ export class UIManager {
             this.startGameButton.textContent = 'Waiting for Host to Start...';
         }
     }
-
+    
     updatePlayerList(players, hostId) {
         this.playerList.innerHTML = '';
         players.forEach(player => {
@@ -78,7 +87,6 @@ export class UIManager {
         });
     }
 
-    // No changes needed below
     showNetworkMenu() { if (this.networkMenu) this.networkMenu.style.display = 'block'; }
     hideNetworkMenu() { if (this.networkMenu) this.networkMenu.style.display = 'none'; }
     hideWaitingScreen() { if (this.waitingScreen) this.waitingScreen.style.display = 'none'; }

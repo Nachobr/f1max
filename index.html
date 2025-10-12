@@ -1,26 +1,178 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <title>Monza F1 Sim</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <link rel="icon" href="data:,">
     <style>
-        body { margin: 0; overflow: hidden; background: #000; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; }
-        .menu, #audio-init-button { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 100; }
-        #audio-init-button { background: #44ff00; color: black; border: none; padding: 20px 40px; font-size: 24px; border-radius: 10px; cursor: pointer; font-weight: bold; }
-        .menu { background: rgba(0, 0, 0, 0.9); color: white; padding: 30px; border-radius: 10px; text-align: center; width: 350px; box-sizing: border-box; }
-        h2 { color: #ff4400; margin-top: 0; }
-        input, select { padding: 10px; margin: 10px 0; width: 95%; box-sizing: border-box; border: 1px solid #ff4400; background: #111; color: white; border-radius: 5px; }
-        button { background: #ff4400; color: white; border: none; padding: 10px 20px; margin: 10px 5px; cursor: pointer; border-radius: 5px; width: 90%; font-weight: bold; font-size: 16px; }
-        #hud { position: absolute; top: 10px; left: 10px; color: white; font-size: 20px; background: rgba(0, 0, 0, 0.5); padding: 10px; border-radius: 5px; }
-        #warning { position: absolute; top: 150px; left: 10px; color: #ff0000; font-size: 18px; background: rgba(255, 0, 0, 0.3); padding: 5px; display: none; border-radius: 5px; }
-        #player-list { list-style: none; padding: 0; margin-bottom: 20px; }
-        #editor-button { background: #007bff; } /* Style for the editor button */
+        body {
+            margin: 0;
+            overflow: hidden;
+            background: #000;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        .menu,
+        #audio-init-button {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 100;
+        }
+
+        #audio-init-button {
+            background: #44ff00;
+            color: black;
+            border: none;
+            padding: 20px 40px;
+            font-size: 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .menu {
+            background: rgba(0, 0, 0, 0.9);
+            color: white;
+            padding: 30px;
+            border-radius: 10px;
+            text-align: center;
+            width: 350px;
+            box-sizing: border-box;
+        }
+
+        h2 {
+            color: #ff4400;
+            margin-top: 0;
+        }
+
+        input,
+        select {
+            padding: 10px;
+            margin: 10px 0;
+            width: 95%;
+            box-sizing: border-box;
+            border: 1px solid #ff4400;
+            background: #111;
+            color: white;
+            border-radius: 5px;
+        }
+
+        button {
+            background: #ff4400;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            margin: 10px 5px;
+            cursor: pointer;
+            border-radius: 5px;
+            width: 90%;
+            font-weight: bold;
+            font-size: 16px;
+        }
+
+        #hud {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            color: white;
+            font-size: 20px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+
+        #warning {
+            position: absolute;
+            top: 150px;
+            left: 10px;
+            color: #ff0000;
+            font-size: 18px;
+            background: rgba(255, 0, 0, 0.3);
+            padding: 5px;
+            display: none;
+            border-radius: 5px;
+        }
+
+        #player-list {
+            list-style: none;
+            padding: 0;
+            margin-bottom: 20px;
+        }
+
+        #editor-button {
+            background: #007bff;
+        }
+
+        #touch-controls {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 50;
+            display: none;
+        }
+
+        #joystick-container {
+            position: absolute;
+            bottom: 30px;
+            left: 30px;
+            width: 120px;
+            height: 120px;
+            background: rgba(128, 128, 128, 0.2);
+            border-radius: 50%;
+        }
+
+        #joystick-head {
+            position: absolute;
+            top: 30px;
+            left: 30px;
+            width: 60px;
+            height: 60px;
+            background: rgba(255, 255, 255, 0.4);
+            border-radius: 50%;
+        }
+
+        .touch-button {
+            position: absolute;
+            width: 80px;
+            height: 80px;
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 50%;
+            border: 2px solid rgba(255, 255, 255, 0.5);
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            user-select: none;
+        }
+
+        /* ✅ FIX: New layout for Throttle, Brake, and Reverse buttons */
+        #throttle-button {
+            bottom: 120px;
+            right: 30px;
+        }
+
+        #brake-button {
+            bottom: 30px;
+            right: 30px;
+        }
+
+        #reverse-button {
+            bottom: 30px;
+            right: 130px;
+        }
     </style>
 </head>
+
 <body>
     <button id="audio-init-button">Click to Start</button>
-
     <div id="networkMenu" class="menu" style="display: none;">
         <h2>Multiplayer Lobby</h2>
         <input type="text" id="playerNameInput" placeholder="Enter Player Name" value="Player1" maxlength="15">
@@ -31,34 +183,42 @@
         <input type="text" id="roomIdInput" placeholder="Enter Room ID" maxlength="8">
         <button id="join-room-button">Join Existing Room</button>
     </div>
-
     <div id="waiting-for-players" class="menu" style="display: none;">
         <h2 id="room-id-display">ROOM ID: ------</h2>
         <h3>Players in Lobby:</h3>
         <ul id="player-list"></ul>
         <button id="start-game-button" style="background: #44ff00; color: black;">Start Race (Host Only)</button>
     </div>
-
     <div id="hud">
-        <div id="hud-lap">Lap: 1/5 | Speed: 0 km/h</div>
-        <div id="hud-current-time">Current Lap: 0:00.000</div>
-        <div id="hud-last-time">Last Lap: --:--.---</div>
-        <div id="hud-best-time">Best Lap: --:--.---</div>
-        <div id="hud-controls">Controls: W/S/A/D, P (Pause)</div>
+        <div id="hud-lap">Lap: 1/5</div>
+        <div id="hud-current-time">Time: 0:00.000</div>
+        <div id="hud-last-time">Last: --:--.---</div>
+        <div id="hud-best-time">Best: --:--.---</div>
     </div>
-
     <div id="warning"></div>
-
     <div id="pauseMenu" class="menu" style="display: none;">
         <h2>Game Paused</h2>
         <button id="resume-button">Resume Game</button>
         <button id="mute-button">Mute Audio</button>
         <button id="editor-button">Open Track Editor</button>
+        <button id="car-editor-button">Customize Car</button>
+    </div>
+
+    <div id="touch-controls">
+        <div id="throttle-button" class="touch-button">Gas</div>
+        <div id="brake-button" class="touch-button">Brake</div>
+        <div id="reverse-button" class="touch-button">Rev</div>
     </div>
 
     <script type="importmap">
-    { "imports": { "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js" } }
-    </script>
+        { 
+            "imports": { 
+                "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+                "three/examples/jsm/geometries/RoundedBoxGeometry.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/geometries/RoundedBoxGeometry.js" 
+            } 
+        }
+</script>
     <script type="module" src="/js/main.js"></script>
 </body>
+
 </html>

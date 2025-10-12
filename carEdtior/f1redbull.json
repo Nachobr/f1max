@@ -1,0 +1,31 @@
+{
+  "colors": {
+    "body": "#1e22aa",
+    "accent": "#fff500",
+    "red": "#ff0000"
+  },
+  "dimensions": {
+    "bodyLength": "2.8",
+    "bodyWidth": "1.3",
+    "bodyHeight": "0.7",
+    "wingWidth": "2",
+    "frontWingWidth": "2.1",
+    "bodyRoundness": "0.1",
+    "sidepodRadius": "0.2",
+    "sidepodLength": "0.5",
+    "sidepodXOffset": "0.4",
+    "sidepodZScale": "4",
+    "sidepodZOffset": "-0.1"
+  },
+  "features": {
+    "halo": true,
+    "sidepods": true,
+    "wingElements": true,
+    "branding": true,
+    "wheels": true
+  },
+  "material": {
+    "shininess": "80",
+    "type": "phong"
+  }
+}

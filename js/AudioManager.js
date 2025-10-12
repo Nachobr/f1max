@@ -47,8 +47,8 @@ export class AudioManager {
 
         // Load all sounds in parallel
         const [idle, accel, brake, finish] = await Promise.all([
+            loadSound('/sounds/carpassing.mp3', true),
             loadSound('/sounds/f1_accel.mp3', true),
-            loadSound('/sounds/F1EngineAcceleration.mp3', true),
             loadSound('/sounds/f1_brake.mp3', true),
             loadSound('/sounds/carpassing.mp3', false, false), // Global sound
         ]);
