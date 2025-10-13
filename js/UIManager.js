@@ -24,6 +24,7 @@ export class UIManager {
         this.hudCurrentTimeElement = document.getElementById('hud-current-time');
         this.hudLastTimeElement = document.getElementById('hud-last-time');
         this.hudBestTimeElement = document.getElementById('hud-best-time');
+        this.hudSpeedElement = document.getElementById('hud-speed');
         
         // Buttons
         this.resumeButton = document.getElementById('resume-button');
@@ -91,7 +92,15 @@ export class UIManager {
     hideNetworkMenu() { if (this.networkMenu) this.networkMenu.style.display = 'none'; }
     hideWaitingScreen() { if (this.waitingScreen) this.waitingScreen.style.display = 'none'; }
     populateTrackSelect(tracks) { if (this.trackSelectNetwork) { this.trackSelectNetwork.innerHTML = tracks.map(t => `<option value="${t}">${t}</option>`).join(''); } }
-    updateHUD(data) { if (!this.hud) return; this.hudLapElement.textContent = `Lap: ${gameState.currentLap}/${gameState.totalLaps}`; this.hudCurrentTimeElement.textContent = `Time: ${formatTime(performance.now() - gameState.lapStartTime)}`; this.hudLastTimeElement.textContent = `Last: ${gameState.lapTimes.length > 0 ? formatTime(gameState.lapTimes.slice(-1)[0]) : '--:--.---'}`; this.hudBestTimeElement.textContent = `Best: ${gameState.bestLapTime === Infinity ? '--:--.---' : formatTime(gameState.bestLapTime)}`; this.warning.style.display = data.isWrongWay ? 'block' : 'none'; }
+    updateHUD(data) { 
+        if (!this.hud) return; 
+        this.hudLapElement.textContent = `Lap: ${gameState.currentLap}/${gameState.totalLaps}`; 
+        this.hudCurrentTimeElement.textContent = `Time: ${formatTime(performance.now() - gameState.lapStartTime)}`; 
+        this.hudLastTimeElement.textContent = `Last: ${gameState.lapTimes.length > 0 ? formatTime(gameState.lapTimes.slice(-1)[0]) : '--:--.---'}`; 
+        this.hudBestTimeElement.textContent = `Best: ${gameState.bestLapTime === Infinity ? '--:--.---' : formatTime(gameState.bestLapTime)}`; 
+        this.hudSpeedElement.textContent = `Speed: ${Math.round(data.speed * 189)} KM/H`;
+        this.warning.style.display = data.isWrongWay ? 'block' : 'none'; 
+    }
     togglePauseMenu() { if (this.pauseMenu) { this.pauseMenu.style.display = gameState.isPaused ? 'block' : 'none'; } }
     showRaceResults() { const totalTime = performance.now() - gameState.startTime; let resultsHTML = `<h2>Race Finished!</h2><p>Total Time: ${formatTime(totalTime)}</p><button onclick="window.location.reload()">Back to Menu</button>`; if (this.pauseMenu) { this.pauseMenu.innerHTML = resultsHTML; this.pauseMenu.style.display = 'block'; } }
 }

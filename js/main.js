@@ -12,18 +12,18 @@ import { trackData, roadHalfWidth } from './TrackBuilder.js';
 import { getAvailableTracks } from './Utils.js';
 import { TouchControls } from './TouchControls.js';
 
-document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', async () => {
 
     // --- INITIALIZATION ---
     // Load custom car configuration or use default
     let player;
     try {
         // createF1Car handles loading from localStorage internally if no config is provided
-        player = createF1Car(); 
+        player = await createF1Car(); 
         console.log('Car configuration loaded (from localStorage or default).');
     } catch (error) {
         console.warn('Error creating car, using default:', error);
-        player = createF1Car(); // Fallback to default if any error occurs
+        player = await createF1Car(); // Fallback to default if any error occurs
     }
     player.name = "playerCar";
     scene.add(player);
@@ -165,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         audioManager.update(speed);
 
         const carDirection = player.getWorldDirection(new THREE.Vector3());
-        const cameraOffset = carDirection.multiplyScalar(-12).add(new THREE.Vector3(0, 6, 0));
+        const cameraOffset = carDirection.multiplyScalar(-8).add(new THREE.Vector3(0, 6, 0));
         const idealPosition = player.position.clone().add(cameraOffset);
         camera.position.lerp(idealPosition, 0.1);
         camera.lookAt(player.position);
@@ -189,7 +189,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         if (frameCounter % 3 === 0) {
             if (checkLapCompletion(position, speed)) { return; }
-            uiManager.updateHUD({ isWrongWay });
+            uiManager.updateHUD({ isWrongWay, speed: carState.speed });
         }
 
         renderer.render(scene, camera);

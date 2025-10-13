@@ -2,27 +2,27 @@ import * as THREE from "three";
 
 // --- DEFAULT MONZA TRACK POINTS ---
 const DEFAULT_TRACK_POINTS = [
-  new THREE.Vector3(217.0, 0, 115.8),
-  new THREE.Vector3(193.5, 0, -190.9),
-  new THREE.Vector3(-64.0, 0, -503.3),
-  new THREE.Vector3(-338.0, 0, -477.3),
-  new THREE.Vector3(-354.0, 0, -271.3),
-  new THREE.Vector3(-138.0, 0, -143.3),
-  new THREE.Vector3(-460.0, 0, 16.8),
-  new THREE.Vector3(-642.0, 0, 286.8),
-  new THREE.Vector3(-482.0, 0, 530.8),
-  new THREE.Vector3(-282.0, 0, 444.8),
-  new THREE.Vector3(-118.0, 0, 542.8),
-  new THREE.Vector3(526.0, 0, 576.8),
-  new THREE.Vector3(628.0, 0, 378.8),
-  new THREE.Vector3(628.0, 0, 204.8),
-  new THREE.Vector3(286.0, 0, 348.8),
-  new THREE.Vector3(216.0, 0, 115.8)
+  new THREE.Vector3(108.5, 0, 57.9),
+  new THREE.Vector3(96.75, 0, -95.45),
+  new THREE.Vector3(-32.0, 0, -251.65),
+  new THREE.Vector3(-169.0, 0, -238.65),
+  new THREE.Vector3(-177.0, 0, -135.65),
+  new THREE.Vector3(-69.0, 0, -71.65),
+  new THREE.Vector3(-230.0, 0, 8.4),
+  new THREE.Vector3(-321.0, 0, 143.4),
+  new THREE.Vector3(-241.0, 0, 265.4),
+  new THREE.Vector3(-141.0, 0, 222.4),
+  new THREE.Vector3(-59.0, 0, 271.4),
+  new THREE.Vector3(263.0, 0, 288.4),
+  new THREE.Vector3(314.0, 0, 189.4),
+  new THREE.Vector3(314.0, 0, 102.4),
+  new THREE.Vector3(143.0, 0, 174.4),
+  new THREE.Vector3(108.0, 0, 57.9)
 ];
 
 // --- TRACK CONSTANTS ---
 const divisions = 1200;
-export const roadWidth = 35;
+export const roadWidth = 17.5;
 export const roadHalfWidth = roadWidth / 2;
 
 // --- TRACK DATA STATE ---
