@@ -46,7 +46,7 @@ async function loadF1CarModel() {
     const loader = new GLTFLoader();
     return new Promise((resolve, reject) => {
         loader.load(
-            './carEdtior/model/F1.glb',
+            './carEdtior/model/F1RB21.glb',
             (gltf) => {
                 // Adjust position and scale if necessary
                 gltf.scene.scale.set(5, 5, 5); // Adjust as needed
