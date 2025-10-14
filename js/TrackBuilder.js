@@ -1,28 +1,43 @@
 import * as THREE from "three";
 
-// --- DEFAULT MONZA TRACK POINTS ---
+// --- IMPROVED DEFAULT MONZA TRACK POINTS WITH ROUNDED CORNERS ---
 const DEFAULT_TRACK_POINTS = [
   new THREE.Vector3(108.5, 0, 57.9),
+  new THREE.Vector3(102.0, 0, -30.0),  // Intermediate point for smoother turn
   new THREE.Vector3(96.75, 0, -95.45),
+  new THREE.Vector3(50.0, 0, -150.0),  // Intermediate point
   new THREE.Vector3(-32.0, 0, -251.65),
+  new THREE.Vector3(-100.0, 0, -245.0), // Intermediate point
   new THREE.Vector3(-169.0, 0, -238.65),
+  new THREE.Vector3(-173.0, 0, -185.0), // Intermediate point
   new THREE.Vector3(-177.0, 0, -135.65),
+  new THREE.Vector3(-140.0, 0, -110.0), // Intermediate point
   new THREE.Vector3(-69.0, 0, -71.65),
+  new THREE.Vector3(-150.0, 0, -30.0),  // Intermediate point
   new THREE.Vector3(-230.0, 0, 8.4),
+  new THREE.Vector3(-280.0, 0, 75.0),   // Intermediate point
   new THREE.Vector3(-321.0, 0, 143.4),
+  new THREE.Vector3(-280.0, 0, 200.0),  // Intermediate point
   new THREE.Vector3(-241.0, 0, 265.4),
+  new THREE.Vector3(-190.0, 0, 245.0),  // Intermediate point
   new THREE.Vector3(-141.0, 0, 222.4),
+  new THREE.Vector3(-100.0, 0, 245.0),  // Intermediate point
   new THREE.Vector3(-59.0, 0, 271.4),
+  new THREE.Vector3(100.0, 0, 280.0),   // Intermediate point
   new THREE.Vector3(263.0, 0, 288.4),
+  new THREE.Vector3(300.0, 0, 240.0),   // Intermediate point
   new THREE.Vector3(314.0, 0, 189.4),
+  new THREE.Vector3(314.0, 0, 145.0),   // Intermediate point
   new THREE.Vector3(314.0, 0, 102.4),
+  new THREE.Vector3(230.0, 0, 140.0),   // Intermediate point
   new THREE.Vector3(143.0, 0, 174.4),
+  new THREE.Vector3(125.0, 0, 115.0),   // Intermediate point
   new THREE.Vector3(108.0, 0, 57.9)
 ];
 
 // --- TRACK CONSTANTS ---
-const divisions = 1200;
-export const roadWidth = 17.5;
+const divisions = 2000;
+export const roadWidth = 23.5;
 export const roadHalfWidth = roadWidth / 2;
 
 // --- TRACK DATA STATE ---
@@ -38,6 +53,62 @@ const whiteMaterial = new THREE.MeshPhongMaterial({ color: 0xffffff });
 const blackMaterial = new THREE.MeshPhongMaterial({ color: 0x111111 });
 const wallMaterial = new THREE.MeshPhongMaterial({ color: 0xaa2222 });
 
+/**
+ * Smooths sharp corners in track points by adding intermediate points
+ * @param {THREE.Vector3[]} points - Original track points
+ * @param {number} smoothness - Smoothness factor (0-1)
+ * @param {number} maxAngle - Maximum angle threshold for smoothing (degrees)
+ * @returns {THREE.Vector3[]} - Smoothed track points
+ */
+function smoothTrackCorners(points, smoothness = 0.3, maxAngle = 60) {
+    if (points.length < 3) return points;
+    
+    const smoothedPoints = [points[0].clone()];
+    const maxAngleRad = THREE.MathUtils.degToRad(maxAngle);
+    
+    for (let i = 1; i < points.length - 1; i++) {
+        const prev = points[i - 1];
+        const current = points[i];
+        const next = points[i + 1];
+        
+        // Calculate vectors between points
+        const v1 = new THREE.Vector3().subVectors(current, prev);
+        const v2 = new THREE.Vector3().subVectors(next, current);
+        
+        // Calculate angle between segments
+        const angle = v1.angleTo(v2);
+        
+        // If angle is too sharp, add intermediate points
+        if (angle > maxAngleRad) {
+            const numIntermediatePoints = Math.ceil(angle / maxAngleRad) * 2;
+            
+            // Add points before the corner
+            for (let j = 1; j <= numIntermediatePoints; j++) {
+                const t = j / (numIntermediatePoints + 1);
+                const smoothPoint = new THREE.Vector3()
+                    .lerpVectors(prev, current, t)
+                    .lerp(current, smoothness);
+                smoothedPoints.push(smoothPoint);
+            }
+            
+            smoothedPoints.push(current.clone());
+            
+            // Add points after the corner
+            for (let j = 1; j <= numIntermediatePoints; j++) {
+                const t = j / (numIntermediatePoints + 1);
+                const smoothPoint = new THREE.Vector3()
+                    .lerpVectors(current, next, t)
+                    .lerp(current, smoothness);
+                smoothedPoints.push(smoothPoint);
+            }
+        } else {
+            smoothedPoints.push(current.clone());
+        }
+    }
+    
+    smoothedPoints.push(points[points.length - 1].clone());
+    return smoothedPoints;
+}
 
 /**
  * Loads track points from localStorage or default and updates trackData.curve.
@@ -67,12 +138,17 @@ export function loadTrackDefinition(trackName) {
         }
     }
 
-    // Update the curve object
-    if (points.length < 3) {
+    // Apply corner smoothing
+    const smoothedPoints = smoothTrackCorners(points, 0.3, 60);
+    
+    // Update the curve object with better tension for smoother corners
+    if (smoothedPoints.length < 3) {
         console.error("Track has insufficient points. Loading default.");
         points = DEFAULT_TRACK_POINTS;
     }
-    trackData.curve = new THREE.CatmullRomCurve3(points, true, "catmullrom", 0.05);
+    
+    // Use lower tension (0.1) for much smoother corners
+    trackData.curve = new THREE.CatmullRomCurve3(smoothedPoints, true, "catmullrom", 0.1);
 }
 
 /**
@@ -92,11 +168,15 @@ function generateRoadMesh(scene) {
     const curve = trackData.curve;
     const positions = [];
     const indices = [];
+    const normals = [];
 
-    for (let i = 0; i <= divisions; i++) {
-        const t = i / divisions;
+    // Use enhanced divisions for smoother curves
+    const enhancedDivisions = divisions;
+
+    for (let i = 0; i <= enhancedDivisions; i++) {
+        const t = i / enhancedDivisions;
         const point = curve.getPointAt(t);
-        const tangent = curve.getTangentAt(t);
+        const tangent = curve.getTangentAt(t).normalize();
         const normal = new THREE.Vector3(0, 1, 0);
         const binormal = new THREE.Vector3().crossVectors(normal, tangent).normalize();
 
@@ -105,20 +185,27 @@ function generateRoadMesh(scene) {
 
         positions.push(left.x, left.y, left.z);
         positions.push(right.x, right.y, right.z);
+        
+        // Add normals for better lighting
+        normals.push(normal.x, normal.y, normal.z);
+        normals.push(normal.x, normal.y, normal.z);
 
-        if (i < divisions) {
+        if (i < enhancedDivisions) {
             const base = i * 2;
-            indices.push(base, base + 1, base + 2, base + 1, base + 3, base + 2);
+            indices.push(base, base + 1, base + 2);
+            indices.push(base + 1, base + 3, base + 2);
         }
     }
 
     const roadGeometry = new THREE.BufferGeometry();
     roadGeometry.setAttribute("position", new THREE.Float32BufferAttribute(positions, 3));
+    roadGeometry.setAttribute("normal", new THREE.Float32BufferAttribute(normals, 3));
     roadGeometry.setIndex(indices);
     roadGeometry.computeVertexNormals();
 
     const road = new THREE.Mesh(roadGeometry, roadMaterial);
     road.receiveShadow = true;
+    road.castShadow = true;
     scene.add(road);
     trackData.sceneMeshes.push(road);
 }
@@ -160,13 +247,13 @@ function generateStartFinishLine(scene) {
 function generateMarkingsAndWalls(scene) {
     const curve = trackData.curve;
     const wallHeight = 2;
-    const wallThickness = 0.2;
+    const wallThickness = 0.5;
     const lineThickness = 0.2;
     const lineHeight = 0.01;
     const dashedSegmentLength = 3;
     const dashedGapLength = 3;
 
-    generateStartFinishLine(scene); 
+    generateStartFinishLine(scene);
 
     for (let i = 0; i < divisions; i++) {
         const t = i / divisions;
@@ -180,6 +267,7 @@ function generateMarkingsAndWalls(scene) {
         const binormal = new THREE.Vector3().crossVectors(normal, tangent).normalize();
         const segmentLength = p1.distanceTo(p2);
 
+        // Generate walls on both sides
         [1, -1].forEach(side => {
             const wallOffset = roadHalfWidth + 1.5;
             const edgeOffset = roadHalfWidth;
@@ -189,6 +277,7 @@ function generateMarkingsAndWalls(scene) {
             const lineP1 = p1.clone().add(binormal.clone().multiplyScalar(edgeOffset * side));
             const lineP2 = p2.clone().add(binormal.clone().multiplyScalar(edgeOffset * side));
 
+            // Wall
             const wallGeometry = new THREE.BoxGeometry(wallThickness, wallHeight, segmentLength);
             const wall = new THREE.Mesh(wallGeometry, wallMaterial);
             wall.castShadow = true;
@@ -199,6 +288,7 @@ function generateMarkingsAndWalls(scene) {
             scene.add(wall);
             trackData.sceneMeshes.push(wall);
 
+            // Edge line
             const edgeLineGeometry = new THREE.BoxGeometry(lineThickness, lineHeight, segmentLength);
             const edgeLine = new THREE.Mesh(edgeLineGeometry, whiteMaterial);
             edgeLine.position.copy(lineP1).lerp(lineP2, 0.5);
@@ -208,6 +298,7 @@ function generateMarkingsAndWalls(scene) {
             trackData.sceneMeshes.push(edgeLine);
         });
 
+        // Generate center dashed line
         let totalLength = segmentLength;
         let currentOffset = 0;
         const centerLineGeometry = new THREE.BoxGeometry(lineThickness, lineHeight, dashedSegmentLength);
@@ -230,11 +321,14 @@ function generateMarkingsAndWalls(scene) {
     }
 }
 
-/**
- * Generates all track components and adds them to the scene.
- * @param {THREE.Scene} scene - The main scene object.
- */
+    // Optional: Analyze and log track curvature for debugging
+    // const analysis = analyzeTrackCurvature(trackData.curve);
+    // console.log('Track Curvature Analysis:', analysis);
+
+
 export function generateTrackMesh(scene) {
     generateRoadMesh(scene);
+    generateStartFinishLine(scene);
     generateMarkingsAndWalls(scene);
 }
+

@@ -1,4 +1,3 @@
-// js/Utils.js
 import * as THREE from "three";
 import { TRACKS } from './Config.js'; // Import the default tracks
 
@@ -48,10 +47,10 @@ export function formatTime(ms) {
 export function getTrackProperties(position, curve, divisions, lastT) {
     let closestPointT = lastT;
     let minDistanceSq = Infinity;
-    const searchRange = 50; 
+    const searchRange = 30; 
     const currentI = Math.floor(lastT * divisions);
 
-    for (let i = -searchRange; i <= searchRange; i++) {
+    for (let i = -searchRange; i <= searchRange; i += 2) {
         let index = currentI + i;
         if (index < 0) index += divisions;
         else if (index > divisions) index -= divisions;

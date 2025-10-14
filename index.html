@@ -172,7 +172,18 @@
 </head>
 
 <body>
-    <button id="audio-init-button">Click to Start</button>
+    
+    
+    <!-- NEW: Main Menu with 4 Buttons -->
+    <div id="main-menu" class="menu" style="display: none;">
+        <h2>F1 Racing Simulator</h2>
+        <button id="multiplayer-button">Multiplayer Race</button>
+        <button id="singleplayer-button">Single Player</button>
+        <button id="track-select-button">Select Track</button>
+        <button id="track-editor-button">Track Editor</button>
+    </div>
+
+    <!-- Existing Network Menu -->
     <div id="networkMenu" class="menu" style="display: none;">
         <h2>Multiplayer Lobby</h2>
         <input type="text" id="playerNameInput" placeholder="Enter Player Name" value="Player1" maxlength="15">
@@ -182,12 +193,24 @@
         <hr style="border-color: #333; width: 80%; margin: 15px auto;">
         <input type="text" id="roomIdInput" placeholder="Enter Room ID" maxlength="8">
         <button id="join-room-button">Join Existing Room</button>
+        <button id="back-to-main-button" style="background: #666; margin-top: 15px;">Back to Main Menu</button>
     </div>
+
+    <!-- NEW: Track Selection Menu -->
+    <div id="track-select-menu" class="menu" style="display: none;">
+        <h2>Select Track</h2>
+        <label for="trackSelect-single" style="display: block; margin: 15px 0 5px 0;">Choose Track:</label>
+        <select id="trackSelect-single"></select>
+        <button id="start-singleplayer-button">Start Single Player Race</button>
+        <button id="back-to-main-from-track" style="background: #666; margin-top: 15px;">Back to Main Menu</button>
+    </div>
+
     <div id="waiting-for-players" class="menu" style="display: none;">
         <h2 id="room-id-display">ROOM ID: ------</h2>
         <h3>Players in Lobby:</h3>
         <ul id="player-list"></ul>
         <button id="start-game-button" style="background: #44ff00; color: black;">Start Race (Host Only)</button>
+        <button id="back-to-lobby-button" style="background: #666; margin-top: 15px;">Back to Lobby</button>
     </div>
     <div id="hud">
         <div id="hud-lap">Lap: 1/5</div>
@@ -203,6 +226,7 @@
         <button id="mute-button">Mute Audio</button>
         <button id="editor-button">Open Track Editor</button>
         <button id="car-editor-button">Customize Car</button>
+        <button id="back-to-main-from-pause" style="background: #666; margin-top: 15px;">Back to Main Menu</button>
     </div>
 
     <div id="touch-controls">
@@ -219,8 +243,76 @@
                 "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js"
             }
         }
-</script>
-    <script type="module" src="/js/main.js"></script>
+    </script>
+    
+    <script type="module">
+        import { setupMenuNavigation } from './js/main.js';
+        import { getAvailableTracks } from './js/Utils.js';
+        import { initGame } from './js/main.js';
+        import { loadTrackDefinition } from './js/TrackBuilder.js';
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            // Resume audio context (needed for modern browsers)
+            if (window.AudioContext || window.webkitAudioContext) {
+                const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                audioContext.resume();
+            }
+            
+            // Show main menu by default
+            document.getElementById('main-menu').style.display = 'block';
+            
+            // Setup menu navigation
+            setupMenuNavigation();
+            
+            // Populate track selection dropdowns
+            function populateTrackSelect(selectId) {
+                const trackNames = getAvailableTracks();
+                const select = document.getElementById(selectId);
+                select.innerHTML = '';
+                
+                trackNames.forEach(trackName => {
+                    const option = document.createElement('option');
+                    option.value = trackName;
+                    option.textContent = trackName;
+                    select.appendChild(option);
+                });
+            }
+            
+            // Populate both track selection dropdowns
+            populateTrackSelect('trackSelect-network');
+            populateTrackSelect('trackSelect-single');
+            
+            // Add event listeners for starting the game
+            document.getElementById('start-game-main-button')?.addEventListener('click', function() {
+                const trackSelect = document.getElementById('trackSelect-network');
+                const selectedTrack = trackSelect.value;
+                
+                if (selectedTrack) {
+                    initGame(selectedTrack, true);
+                    document.getElementById('networkMenu').style.display = 'none';
+                } else {
+                    alert('Please select a track first!');
+                }
+            });
+            
+            document.getElementById('start-singleplayer-button').addEventListener('click', function() {
+                const trackSelect = document.getElementById('trackSelect-single');
+                const selectedTrack = trackSelect.value;
+                
+                if (selectedTrack) {
+                    initGame(selectedTrack, false);
+                    document.getElementById('track-select-menu').style.display = 'none';
+                } else {
+                    alert('Please select a track first!');
+                }
+            });
+            
+            // Initialize touch controls if on a touch device
+            if ('ontouchstart' in window) {
+                document.getElementById('touch-controls').style.display = 'block';
+            }
+        });
+    </script>
 </body>
 
 </html>

@@ -10,11 +10,11 @@ export const carState = {
     isWrongWay: false,
 
     maxSpeed: 2.0,
-    acceleration: 0.035,
+    acceleration: 0.025,
     braking: 0.95,      // ✅ FIX: Strong multiplicative brake factor
     reverseSpeed: 0.02, // ✅ NEW: Slow acceleration for reverse
-    friction: 0.98,     // ✅ FIX: Multiplicative friction factor
-    handling: 0.035,
+    friction: 0.985,     // ✅ FIX: Multiplicative friction factor
+    handling: 0.04,
     grip: 0.95,
 };
 
