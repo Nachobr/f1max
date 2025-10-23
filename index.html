@@ -172,8 +172,8 @@
 </head>
 
 <body>
-    
-    
+
+
     <!-- NEW: Main Menu with 4 Buttons -->
     <div id="main-menu" class="menu" style="display: none;">
         <h2>F1 Racing Simulator</h2>
@@ -225,7 +225,7 @@
         <button id="resume-button">Resume Game</button>
         <button id="mute-button">Mute Audio</button>
         <button id="editor-button">Open Track Editor</button>
-        <button id="car-editor-button">Customize Car</button>
+
         <button id="back-to-main-from-pause" style="background: #666; margin-top: 15px;">Back to Main Menu</button>
     </div>
 
@@ -236,40 +236,41 @@
     </div>
 
     <script type="importmap">
-        { 
+        {
             "imports": { 
                 "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
                 "three/examples/jsm/geometries/RoundedBoxGeometry.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/geometries/RoundedBoxGeometry.js",
-                "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js"
+                "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js",
+                "three/examples/jsm/utils/BufferGeometryUtils.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/utils/BufferGeometryUtils.js"
             }
         }
     </script>
-    
+
     <script type="module">
         import { setupMenuNavigation } from './js/main.js';
         import { getAvailableTracks } from './js/Utils.js';
         import { initGame } from './js/main.js';
         import { loadTrackDefinition } from './js/TrackBuilder.js';
-        
+
         document.addEventListener('DOMContentLoaded', function() {
             // Resume audio context (needed for modern browsers)
             if (window.AudioContext || window.webkitAudioContext) {
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
                 audioContext.resume();
             }
-            
+
             // Show main menu by default
             document.getElementById('main-menu').style.display = 'block';
-            
+
             // Setup menu navigation
             setupMenuNavigation();
-            
+
             // Populate track selection dropdowns
             function populateTrackSelect(selectId) {
                 const trackNames = getAvailableTracks();
                 const select = document.getElementById(selectId);
                 select.innerHTML = '';
-                
+
                 trackNames.forEach(trackName => {
                     const option = document.createElement('option');
                     option.value = trackName;
@@ -277,16 +278,16 @@
                     select.appendChild(option);
                 });
             }
-            
+
             // Populate both track selection dropdowns
             populateTrackSelect('trackSelect-network');
             populateTrackSelect('trackSelect-single');
-            
+
             // Add event listeners for starting the game
-            document.getElementById('start-game-main-button')?.addEventListener('click', function() {
+            document.getElementById('start-game-main-button')?.addEventListener('click', function () {
                 const trackSelect = document.getElementById('trackSelect-network');
                 const selectedTrack = trackSelect.value;
-                
+
                 if (selectedTrack) {
                     initGame(selectedTrack, true);
                     document.getElementById('networkMenu').style.display = 'none';
@@ -294,11 +295,11 @@
                     alert('Please select a track first!');
                 }
             });
-            
-            document.getElementById('start-singleplayer-button').addEventListener('click', function() {
+
+            document.getElementById('start-singleplayer-button').addEventListener('click', function () {
                 const trackSelect = document.getElementById('trackSelect-single');
                 const selectedTrack = trackSelect.value;
-                
+
                 if (selectedTrack) {
                     initGame(selectedTrack, false);
                     document.getElementById('track-select-menu').style.display = 'none';
@@ -306,7 +307,7 @@
                     alert('Please select a track first!');
                 }
             });
-            
+
             // Initialize touch controls if on a touch device
             if ('ontouchstart' in window) {
                 document.getElementById('touch-controls').style.display = 'block';

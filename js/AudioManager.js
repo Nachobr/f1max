@@ -10,11 +10,10 @@ export class AudioManager {
         this.sounds = {
             idle: null,
             accel: null,
-            brake: null,
-            finish: null,
+            finish: null // Removed brake sound
         };
         this.currentVolume = CONFIG.DEFAULT_VOLUME;
-        this.isMuted = false; // New property to track mute state
+        this.isMuted = false;
     }
 
     async init() {
@@ -45,23 +44,20 @@ export class AudioManager {
             });
         };
 
-        // Load all sounds in parallel
-        const [idle, accel, brake, finish] = await Promise.all([
+        // Load all sounds in parallel (brake removed)
+        const [idle, accel, finish] = await Promise.all([
             loadSound('/sounds/carpassing.mp3', true),
-            loadSound('/sounds/f1_accel.mp3', true),
-            loadSound('/sounds/f1_brake.mp3', true),
-            loadSound('/sounds/carpassing.mp3', false, false), // Global sound
+            loadSound('/sounds/f1rb2025.mp3', true),
+            loadSound('/sounds/carpassing.mp3', false, false),
         ]);
-        
+
         this.sounds.idle = idle;
         this.sounds.accel = accel;
-        this.sounds.brake = brake;
         this.sounds.finish = finish;
 
-        // Set initial volumes
+        // Set initial volumes (brake removed)
         this.sounds.idle.setVolume(0.3);
         this.sounds.accel.setVolume(0.0);
-        this.sounds.brake.setVolume(0.8);
         this.sounds.finish.setVolume(1.0);
 
         gameState.audioInitialized = true;
@@ -78,7 +74,7 @@ export class AudioManager {
         if (!gameState.audioInitialized) return;
         Object.values(this.sounds).forEach(sound => sound?.stop());
     }
-    
+
     playFinishSound() {
         this.stopAll();
         this.sounds.finish?.play();
@@ -88,39 +84,42 @@ export class AudioManager {
         if (!gameState.audioInitialized || !this.sounds.idle || !this.sounds.accel) return;
 
         const { keys } = gameState;
-        const maxSpeed = CONFIG.MAX_SPEED;
-        const pitch = 0.6 + THREE.MathUtils.clamp(Math.abs(speed) / maxSpeed, 0, 1) * 1.2;
-
+        const pitch = 1.0;
         this.sounds.idle.setPlaybackRate(pitch);
         this.sounds.accel.setPlaybackRate(pitch);
-        
-        // Engine sound logic
+
+        // Engine mix (no brake sound)
         if (keys['w'] && speed >= 0.1) {
             this.sounds.idle.setVolume(0.1);
             this.sounds.accel.setVolume(0.7);
-            if (this.sounds.brake?.isPlaying) this.sounds.brake.stop();
-        } else if (Math.abs(speed) < 0.1) { // Idle
+        } else if (Math.abs(speed) < 0.1) {
             this.sounds.idle.setVolume(keys['w'] ? 0.3 : 0.5);
             this.sounds.accel.setVolume(keys['w'] ? 0.2 : 0.0);
-            if (this.sounds.brake?.isPlaying) this.sounds.brake.stop();
-        } else { // Coasting
+        } else {
             this.sounds.idle.setVolume(0.3);
             this.sounds.accel.setVolume(0.0);
         }
-
-        // Brake sound
-        if (keys['s'] && speed > 0.1 && this.sounds.brake && !this.sounds.brake.isPlaying) {
-            this.sounds.brake.play();
-        }
     }
+
     toggleMute() {
         if (!gameState.audioInitialized) return;
         this.isMuted = !this.isMuted;
         this.listener.setMasterVolume(this.isMuted ? 0 : this.currentVolume);
-        // Optionally update UI button text
         const muteButton = document.getElementById('mute-button');
         if (muteButton) {
             muteButton.textContent = this.isMuted ? 'Unmute Audio' : 'Mute Audio';
         }
+    }
+
+    destroy() {
+        this.stopEngine(); // Note: consider replacing with stopAll(); stopEngine() may not exist
+        if (this.listener && this.camera) {
+            this.camera.remove(this.listener);
+        }
+        this.sounds = {};
+        this.listener = null;
+        this.camera = null;
+        this.playerMesh = null;
+        gameState.audioInitialized = false;
     }
 }

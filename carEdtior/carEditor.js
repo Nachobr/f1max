@@ -461,7 +461,8 @@ class CarModelEditor {
         const accentMaterial = new THREE.MeshPhongMaterial({ color: accentColor, shininess: 80 });
 
         // Front wing
-        const frontWing = new THREE.Mesh(new THREE.BoxGeometry(frontWingWidth, 0.05, 0.4), bodyMaterial);
+        // NEW
+        const frontWing = new THREE.Mesh(new THREE.BoxGeometry(1, 0.05, 0.4), bodyMaterial);
         frontWing.position.set(0, 0.15, 1.8);
         this.car.add(frontWing);
         this.controls.frontWing = frontWing;
@@ -478,7 +479,8 @@ class CarModelEditor {
         this.controls.fwEndplateRight = fwEndplateRight;
 
         // Rear wing
-        const rearWing = new THREE.Mesh(new THREE.BoxGeometry(wingWidth * 0.6, 0.08, 0.3), bodyMaterial);
+        // NEW
+        const rearWing = new THREE.Mesh(new THREE.BoxGeometry(1, 0.08, 0.3), bodyMaterial);
         rearWing.position.set(0, 0.9, -1.6);
         this.car.add(rearWing);
         this.controls.rearWing = rearWing;
@@ -589,13 +591,14 @@ class CarModelEditor {
 
             case 'wingWidth':
                 const rearWingWidth = value * 0.6;
-                this.controls.rearWing.geometry = new THREE.BoxGeometry(rearWingWidth, 0.08, 0.3);
+                this.controls.rearWing.scale.x = rearWingWidth;
                 this.controls.rwEndplateLeft.position.x = -rearWingWidth / 2 + 0.04;
                 this.controls.rwEndplateRight.position.x = rearWingWidth / 2 - 0.04;
                 break;
 
             case 'frontWingWidth':
-                this.controls.frontWing.geometry = new THREE.BoxGeometry(value, 0.05, 0.4);
+                // NEW
+                this.controls.frontWing.scale.x = value;
                 this.controls.fwEndplateLeft.position.x = -value / 2 + 0.04;
                 this.controls.fwEndplateRight.position.x = value / 2 - 0.04;
                 break;
@@ -605,7 +608,7 @@ class CarModelEditor {
     updateBodyGeometry() {
         const roundness = parseFloat(document.getElementById('bodyRoundness').value);
         const radiusSegments = Math.max(4, Math.round(8 * roundness));
-        const radialSegments = Math.max(4, Math.round(16 * roundness));
+        //const radialSegments = Math.max(4, Math.round(16 * roundness));
 
         // Update capsule geometry with proper width (radius) and length
         this.controls.body.geometry = new RoundedBoxGeometry(
