@@ -1,4 +1,4 @@
-// --- START OF FILE main.js (Optimized & Cleaned) ---
+// --- START OF FILE main.js (Optimized with Memory Monitoring) ---
 
 import * as THREE from 'three';
 import { scene, camera, renderer } from './SceneSetup.js';
@@ -6,7 +6,7 @@ import { gameState } from './State.js';
 import { CONFIG } from './Config.js';
 import { UIManager } from './UIManager.js';
 import { AudioManager } from './AudioManager.js';
-import { initGameManager, loadTrackAndRestart, checkLapCompletion, togglePause } from './GameManager.js';
+import { initGameManager, loadTrackAndRestart, checkLapCompletion, togglePause, setRenderer } from './GameManager.js';
 import { NetworkManager } from './NetworkManager.js';
 import { createF1Car } from './CarModel.js';
 import { carState, updatePhysics } from './CarPhysics.js';
@@ -14,15 +14,16 @@ import { trackData, roadHalfWidth } from './TrackBuilder.js';
 import { getAvailableTracks } from './Utils.js';
 import { TouchControls } from './TouchControls.js';
 import { CameraManager } from './CameraManager.js';
-
+import { MemoryMonitor, getMemoryStatus } from './MemoryMonitor.js';
+import { TextureManager } from './TextureManager.js';
 
 // Global variables
 let cameraManager;
 let audioManager, networkManager, uiManager, touchControls, player;
+let memoryMonitor, textureManager;
 let gameStarted = false;
 let isTouchDevice = 'ontouchstart' in window;
 let keydownHandler, keyupHandler;
-//let cockpitCameraActive = false;
 let lastTurnDirection = 0;
 
 let lastPhysicsUpdateTime = 0;
@@ -37,13 +38,15 @@ const currentCarRotation = new THREE.Euler(0, 0, 0);
 
 const CAR_Y_OFFSET = 0.8;
 
-// Memory monitoring
-let vectorCreateCount = 0;
-let memoryCheckCounter = 0;
-
 export async function initGame(trackName = 'Monza Standard', isMultiplayer = false) {
     gameStarted = false;
     gameState.isMultiplayer = isMultiplayer;
+    
+    // Initialize memory monitoring system
+    memoryMonitor = new MemoryMonitor(renderer, scene);
+    textureManager = new TextureManager(renderer);
+    
+    console.log('🎮 Memory monitoring system initialized');
 
     try {
         const car = await createF1Car();
@@ -72,13 +75,23 @@ export async function initGame(trackName = 'Monza Standard', isMultiplayer = fal
     touchControls = new TouchControls('touch-controls');
     initGameManager(uiManager, audioManager, networkManager);
     gameState.networkManager = networkManager;
-
+    setRenderer(renderer);
     // --- INPUT EVENT LISTENERS ---
     keydownHandler = e => {
         const key = e.key.toLowerCase();
         gameState.keys[key] = true;
         if (key === 'p') togglePause();
         if (key === 'c') cameraManager.toggleCamera();
+        
+        // Debug keys for memory monitoring
+        if (key === 'm' && memoryMonitor) {
+            console.log('🔍 Manual memory check triggered');
+            memoryMonitor.debugMemoryUsage();
+        }
+        if (key === 'l' && memoryMonitor) {
+            console.log('🧹 Manual cleanup triggered');
+            memoryMonitor.forceCleanup();
+        }
     };
 
     keyupHandler = e => {
@@ -99,6 +112,21 @@ export async function initGame(trackName = 'Monza Standard', isMultiplayer = fal
 
     handleButtonClick(uiManager.resumeButton, () => togglePause());
     handleButtonClick(document.getElementById('mute-button'), () => audioManager.toggleMute());
+
+    // Add memory debug button if available in UI
+    const debugMemoryButton = document.getElementById('debug-memory');
+    if (debugMemoryButton) {
+        handleButtonClick(debugMemoryButton, () => {
+            if (memoryMonitor) memoryMonitor.debugMemoryUsage();
+        });
+    }
+
+    const cleanupMemoryButton = document.getElementById('cleanup-memory');
+    if (cleanupMemoryButton) {
+        handleButtonClick(cleanupMemoryButton, () => {
+            if (memoryMonitor) memoryMonitor.forceCleanup();
+        });
+    }
 
     if (uiManager.editorButton) {
         handleButtonClick(uiManager.editorButton, () => {
@@ -237,6 +265,17 @@ export function setupMenuNavigation() {
             networkManager.disconnect();
         }
         networkManager = null;
+        
+        // Cleanup memory monitoring
+        if (memoryMonitor) {
+            memoryMonitor.dispose();
+            memoryMonitor = null;
+        }
+        
+        if (textureManager) {
+            textureManager.disposeAll();
+            textureManager = null;
+        }
     });
 
     document.getElementById('start-singleplayer-button').addEventListener('click', function () {
@@ -272,10 +311,6 @@ let frameCounter = 0;
 const networkTickRate = 1000 / CONFIG.INPUT_SEND_RATE_HZ;
 let lastNetworkUpdate = 0;
 
-// PRE-ALLOCATED VECTORS ONLY
-const cameraPos = new THREE.Vector3();
-const lookAhead = new THREE.Vector3();
-
 function animate(currentTime = 0) {
     requestAnimationFrame(animate);
 
@@ -284,13 +319,16 @@ function animate(currentTime = 0) {
         console.warn('Essential components missing, skipping frame');
         return;
     }
-    // Memory monitoring
-    memoryCheckCounter++;
-    if (memoryCheckCounter % 300 === 0 && performance.memory) {
-        const usedMB = performance.memory.usedJSHeapSize / 1024 / 1024;
-        const totalMB = performance.memory.totalJSHeapSize / 1024 / 1024;
-        console.log(`Memory: ${usedMB.toFixed(2)}MB / ${totalMB.toFixed(2)}MB, Vectors: ${vectorCreateCount}`);
-        if (usedMB > 500) console.warn('HIGH MEMORY USAGE DETECTED');
+
+    // Update memory monitoring system
+    if (memoryMonitor) {
+        memoryMonitor.update();
+        
+        // Update HUD with memory status every 2 seconds
+        if (frameCounter % 120 === 0 && uiManager) {
+            const memoryStatus = getMemoryStatus();
+            uiManager.updateMemoryStatus(memoryStatus);
+        }
     }
 
     if (gameState.isPaused || !gameStarted) return;
@@ -379,18 +417,32 @@ function animate(currentTime = 0) {
 
     frameCounter++;
     if (frameCounter >= 1000) frameCounter = 0;
-
-
 }
+
 export function cleanupGame() {
     gameStarted = false;
+    
+    // Cleanup memory monitoring system
+    if (memoryMonitor) {
+        memoryMonitor.dispose();
+        memoryMonitor = null;
+    }
+    
+    if (textureManager) {
+        textureManager.disposeAll();
+        textureManager = null;
+    }
+    
     if (player && scene) scene.remove(player);
     if (audioManager) audioManager.destroy();
     if (networkManager) networkManager.disconnect();
 
     window.removeEventListener("keydown", keydownHandler);
     window.removeEventListener("keyup", keyupHandler);
+    
+    console.log('🎮 Game cleanup completed');
 }
+
 export { loadTrackAndRestart as loadTrackByName };
 
 document.addEventListener('DOMContentLoaded', async () => {
@@ -398,4 +450,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     if ('ontouchstart' in window) {
         document.getElementById('touch-controls').style.display = 'block';
     }
+    
+    console.log('🚀 Game initialized with memory monitoring');
+    console.log('💡 Press M for memory check, L for cleanup');
 });

@@ -75,6 +75,13 @@ export class UIManager {
         }
     }
     
+    updateMemoryStatus(status) {
+    const memoryElement = document.getElementById('memory-status');
+    if (memoryElement) {
+        memoryElement.textContent = `Memory: ${status}`;
+    }
+}
+
     updatePlayerList(players, hostId) {
         this.playerList.innerHTML = '';
         players.forEach(player => {
