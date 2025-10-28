@@ -23,14 +23,14 @@ export class NetworkManager extends EventTarget {
             this.ws.onopen = () => {
                 this.isConnected = true;
                 this.singlePlayerMode = false;
-                console.log('WebSocket connected.');
+                //console.log('WebSocket connected.');
                 resolve(true);
             };
 
             this.ws.onmessage = this._handleMessage.bind(this);
             this.ws.onclose = () => {
                 this.isConnected = false;
-                console.log('WebSocket disconnected.');
+                //('WebSocket disconnected.');
                 this.cleanupRemotePlayers();
             };
 

@@ -124,7 +124,7 @@ export function loadTrackDefinition(trackName) {
         try {
             const data = localStorage.getItem(`trackData_${trackName}`);
             if (data) {
-                console.log(`Loading custom track '${trackName}' from localStorage.`);
+                //console.log(`Loading custom track '${trackName}' from localStorage.`);
                 const rawPoints = JSON.parse(data);
                 points = rawPoints.map(p => new THREE.Vector3(parseFloat(p.x), 0, parseFloat(p.z)));
             } else {

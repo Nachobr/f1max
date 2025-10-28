@@ -2,7 +2,7 @@
 
 import * as THREE from "three";
 // The function in carLoader is now called `loadCarModel`
-import { loadCarModel } from "../carEdtior/carLoader.js";
+import { loadCarModel } from "../carEditor/carLoader.js";
 
 /**
  * Creates and returns a modern F1 car mesh group using configuration from the editor.

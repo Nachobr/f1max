@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <title>F1 Car Model Editor</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            display: flex;
+            height: 100vh;
+        }
+
+        #editorPanel {
+            width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+            border-right: 2px solid #333;
+        }
+
+        #previewPanel {
+            flex: 1;
+            position: relative;
+        }
+
+        .section {
+            margin-bottom: 25px;
+            padding: 15px;
+            background: #333;
+            border-radius: 8px;
+        }
+
+        .section h3 {
+            margin-top: 0;
+            color: #ff6b00;
+            border-bottom: 1px solid #444;
+            padding-bottom: 8px;
+        }
+
+        .control-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+            color: #ccc;
+        }
+
+        input[type="color"],
+        input[type="range"],
+        select {
+            width: 100%;
+            padding: 8px;
+            border: 1px solid #555;
+            border-radius: 4px;
+            background: #444;
+            color: white;
+        }
+
+        input[type="range"] {
+            padding: 0;
+        }
+
+        .color-preview {
+            width: 30px;
+            height: 30px;
+            border: 2px solid #666;
+            border-radius: 4px;
+            display: inline-block;
+            margin-left: 10px;
+            vertical-align: middle;
+        }
+
+        button {
+            background: #ff6b00;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        button:hover {
+            background: #ff8c00;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+        }
+
+        .checkbox-group input {
+            margin-right: 10px;
+        }
+
+        #status {
+            background: #4CAF50;
+            color: white;
+            padding: 10px;
+            border-radius: 4px;
+            margin-top: 10px;
+            text-align: center;
+            display: none;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="editorPanel">
+        <h2>F1 Car Model Editor</h2>
+
+        <div class="section">
+            <h3>Main Colors</h3>
+
+            <div class="control-group">
+                <label for="bodyColor">Body Color:</label>
+                <input type="color" id="bodyColor" value="#1e22aa">
+                <div class="color-preview" id="bodyPreview" style="background: #1e22aa;"></div>
+            </div>
+
+            <div class="control-group">
+                <label for="accentColor">Accent Color:</label>
+                <input type="color" id="accentColor" value="#fff500">
+                <div class="color-preview" id="accentPreview" style="background: #fff500;"></div>
+            </div>
+
+            <div class="control-group">
+                <label for="redColor">Red Details:</label>
+                <input type="color" id="redColor" value="#ff0000">
+                <div class="color-preview" id="redPreview" style="background: #ff0000;"></div>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Body Components</h3>
+
+            <div class="control-group">
+                <label for="bodyLength">Body Length:</label>
+                <input type="range" id="bodyLength" min="2.5" max="4.0" step="0.1" value="3.5">
+                <span id="bodyLengthValue">3.5</span>
+            </div>
+
+            <div class="control-group">
+                <label for="bodyWidth">Body Width:</label>
+                <input type="range" id="bodyWidth" min="0.8" max="2" step="0.1" value="1.2">
+                <span id="bodyWidthValue">1.2</span>
+            </div>
+
+            <div class="control-group">
+                <label for="bodyHeight">Body Height:</label>
+                <input type="range" id="bodyHeight" min="0.5" max="1.2" step="0.1" value="0.8">
+                <span id="bodyHeightValue">0.8</span>
+            </div>
+
+            <div class="control-group">
+                <label for="wingWidth">Rear Wing Width:</label>
+                <input type="range" id="wingWidth" min="0.5" max="3.5" step="0.1" value="2.8">
+                <span id="wingWidthValue">2.8</span>
+            </div>
+
+            <div class="control-group">
+                <label for="frontWingWidth">Front Wing Width:</label>
+                <input type="range" id="frontWingWidth" min=0.6" max="4.0" step="0.1" value="2.8">
+                <span id="frontWingWidthValue">2.8</span>
+            </div>
+
+            <div class="control-group">
+                <label for="bodyRoundness">Body Roundness:</label>
+                <input type="range" id="bodyRoundness" min="0.1" max="1.0" step="0.1" value="0.5">
+                <span id="bodyRoundnessValue">0.5</span>
+            </div>
+
+            <div class="control-group">
+                <label for="sidepodRadius">Sidepod Radius:</label>
+                <input type="range" id="sidepodRadius" min="0.1" max="0.5" step="0.05" value="0.2">
+                <span id="sidepodRadiusValue">0.2</span>
+            </div>
+
+            <div class="control-group">
+                <label for="sidepodLength">Sidepod Length:</label>
+                <input type="range" id="sidepodLength" min="0.5" max="1.5" step="0.1" value="0.8">
+                <span id="sidepodLengthValue">0.8</span>
+            </div>
+
+            <div class="control-group">
+                <label for="sidepodXOffset">Sidepod X-Offset:</label>
+                <input type="range" id="sidepodXOffset" min="0.4" max="1.0" step="0.05" value="0.6">
+                <span id="sidepodXOffsetValue">0.6</span>
+            </div>
+
+            <div class="control-group">
+                <label for="sidepodZScale">Sidepod Z-Scale:</label>
+                <input type="range" id="sidepodZScale" min="0.5" max="4.0" step="0.1" value="1.0">
+                <span id="sidepodZScaleValue">1.0</span>
+            </div>
+
+            <div class="control-group">
+                <label for="sidepodZOffset">Sidepod Z-Offset:</label>
+                <input type="range" id="sidepodZOffset" min="-0.5" max="0.5" step="0.05" value="0.2">
+                <span id="sidepodZOffsetValue">0.2</span>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Features</h3>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="showHalo" checked>
+                <label for="showHalo">Show Halo</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="showSidepods" checked>
+                <label for="showSidepods">Show Sidepods</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="showWingElements" checked>
+                <label for="showWingElements">Show Wing Elements</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="showBranding" checked>
+                <label for="showBranding">Show Branding</label>
+            </div>
+
+            <div class="checkbox-group">
+                <input type="checkbox" id="showWheels" checked>
+                <label for="showWheels">Show Wheels</label>
+            </div>
+        </div>
+
+        <div class="section">
+            <h3>Material</h3>
+
+            <div class="control-group">
+                <label for="shininess">Shininess:</label>
+                <input type="range" id="shininess" min="0" max="100" step="10" value="80">
+                <span id="shininessValue">80</span>
+            </div>
+
+            <div class="control-group">
+                <label for="materialType">Material Type:</label>
+                <select id="materialType">
+                    <option value="phong">Phong (Glossy)</option>
+                    <option value="standard">Standard</option>
+                    <option value="basic">Basic (Flat)</option>
+                </select>
+            </div>
+        </div>
+
+        <button id="exportButton">Export Car Model</button>
+        <button id="resetButton">Reset to Default</button>
+        <input type="text" id="saveCarInput" placeholder="Enter Car Name" value="Custom Car 1" style="margin-top: 10px;">
+        <button id="saveButton">Save Car</button>
+        <button id="loadCarListButton" style="margin-top: 10px;">Load Cars</button>
+        <select id="loadCarSelect" style="margin-top: 10px;"></select>
+        <button id="loadSelectedCarButton" style="margin-top: 10px;">Load Selected Car</button>
+
+        <div id="status"></div>
+    </div>
+
+    <div id="previewPanel">
+        <canvas id="previewCanvas"></canvas>
+    </div>
+
+    <script type="importmap">
+    {
+        "imports": {
+            "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+            "three/examples/jsm/geometries/RoundedBoxGeometry.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/geometries/RoundedBoxGeometry.js",
+            "three/examples/jsm/loaders/GLTFLoader.js": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/loaders/GLTFLoader.js"
+        }
+    }
+    </script>
+    <script type="module" src="CarEditor.js"></script>
+</body>
+
+</html>
