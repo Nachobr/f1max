@@ -7,14 +7,15 @@ export class CameraManager {
         this.camera = camera;
         this.player = player;
         this.cockpitCameraActive = false;
-        
+
         // Pre-allocated vectors for zero memory allocation
         this.cameraPos = new THREE.Vector3();
         this.lookAhead = new THREE.Vector3();
-        
+        this.cameraPosition = new THREE.Vector3(); // ADD THIS
+        this.lookAtTarget = new THREE.Vector3();   // ADD THIS
+
         // Camera settings
-        this.cockpitOffset = new THREE.Vector3(-3.0, 1.3, 0.2);
-        this.cockpitLookAt = new THREE.Vector3(10, 0, 10);
+        this.cockpitOffset = new THREE.Vector3(0, 1.2, -0.15); // (side, height, forward/back)
         this.externalOffset = new THREE.Vector3(-10, 5, -10);
     }
 
@@ -37,29 +38,25 @@ export class CameraManager {
         const cosY = Math.cos(this.player.rotation.y);
 
         if (this.cockpitCameraActive) {
-            this.updateCockpitCamera(playerX, playerY, playerZ, sinY, cosY);
+            this.updateCockpitCamera();
         } else {
             this.updateExternalCamera(playerX, playerY, playerZ, sinY, cosY);
         }
     }
 
-    updateCockpitCamera(playerX, playerY, playerZ, sinY, cosY) {
-        // Cockpit camera - pre-calculate multiplications
-        const forwardX = sinY * this.cockpitOffset.x;
-        const forwardZ = cosY * this.cockpitOffset.z;
-        const lookX = sinY * this.cockpitLookAt.x;
-        const lookZ = cosY * this.cockpitLookAt.y;
+    updateCockpitCamera() {
+        // Calculate the desired camera position in the car's local space
+        const desiredPosition = this.cockpitOffset.clone().applyQuaternion(this.player.quaternion);
 
-        this.camera.position.set(
-            playerX + forwardX,
-            playerY + this.cockpitOffset.y,
-            playerZ + forwardZ
-        );
-        this.camera.lookAt(
-            playerX + lookX,
-            playerY,
-            playerZ + lookZ
-        );
+        // Add the car's world position to get the final camera position
+        this.cameraPosition.copy(this.player.position).add(desiredPosition);
+        this.camera.position.copy(this.cameraPosition);
+
+        // Calculate the look-at target
+        this.lookAtTarget.set(0, 0, 100).applyQuaternion(this.player.quaternion);
+        this.lookAtTarget.add(this.player.position);
+
+        this.camera.lookAt(this.lookAtTarget);
     }
 
     updateExternalCamera(playerX, playerY, playerZ, sinY, cosY) {
@@ -82,11 +79,6 @@ export class CameraManager {
                 cockpitSettings.offsetX || -3.0,
                 cockpitSettings.offsetY || 1.3,
                 cockpitSettings.offsetZ || 0.2
-            );
-            this.cockpitLookAt.set(
-                cockpitSettings.lookX || 10,
-                cockpitSettings.lookY || 0,
-                cockpitSettings.lookZ || 10
             );
         }
 
