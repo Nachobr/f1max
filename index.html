@@ -14,6 +14,33 @@
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
         }
 
+        #mobile-menu-toggle {
+            display: none;
+        }
+
+        #mobile-menu-panel {
+            display: none;
+        }
+
+        /* Show mobile menu on touch devices */
+        @media (max-width: 768px) {
+            #mobile-menu-toggle {
+                display: block;
+            }
+        }
+
+        /* Overlay when menu is open */
+        .mobile-menu-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 998;
+            display: none;
+        }
+
         .menu,
         #audio-init-button {
             position: absolute;
@@ -84,6 +111,7 @@
             padding: 10px;
             border-radius: 5px;
         }
+
         #hud-camera-toggle {
             margin-top: 8px;
             font-size: 14px;
@@ -156,9 +184,15 @@
             align-items: center;
             justify-content: center;
             user-select: none;
+            /* Add these to fix text overflow */
+            text-align: center;
+            padding: 0;
+            line-height: 1.2;
+            word-wrap: break-word;
+            overflow: hidden;
         }
 
-        /* ✅ FIX: New layout for Throttle, Brake, and Reverse buttons */
+
         #throttle-button {
             bottom: 120px;
             right: 30px;
@@ -177,6 +211,63 @@
 </head>
 
 <body>
+    <!-- Mobile Menu Toggle Button -->
+    <div id="mobile-menu-toggle" style="position: absolute; top: 10px; right: 10px; z-index: 1000; display: none;">
+        <button
+            style="background: rgba(0,0,0,0.7); color: white; border: 1px solid #ff4400; border-radius: 5px; padding: 10px 15px; font-size: 16px;">
+            ☰ Menu
+        </button>
+    </div>
+
+    <!-- Mobile Menu Panel -->
+    <div id="mobile-menu-panel"
+        style="position: absolute; top: 0; right: -300px; width: 250px; height: 100%; background: rgba(0,0,0,0.95); z-index: 999; transition: right 0.3s ease; padding: 20px; box-sizing: border-box; overflow-y: auto;">
+        <div style="color: white; margin-bottom: 20px;">
+            <h3 style="color: #ff4400; margin-top: 0;">Mobile Controls</h3>
+
+            <!-- Gyro Controls in Mobile Menu -->
+            <div style="margin-bottom: 20px;">
+                <label style="display: flex; align-items: center; gap: 10px; margin-bottom: 15px;">
+                    <input type="checkbox" id="mobile-gyro-toggle" style="width: 22px; height: 22px;">
+
+                    <span style="font-size: 16px;">Tilt Steering</span>
+                </label>
+
+                <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 5px; font-size: 14px;">Sensitivity: <span
+                            id="mobile-sensitivity-value">1.0</span></div>
+                    <input type="range" id="mobile-gyro-sensitivity" min="0.5" max="2.0" step="0.1" value="1.0"
+                        style="width: 100%; height: 25px;">
+                </div>
+
+                <button id="mobile-gyro-calibrate"
+                    style="padding: 8px 12px; border-radius: 5px; background: #444; color: white; border: none; font-size: 14px; width: 100%;">
+                    Calibrate Gyro
+                </button>
+            </div>
+
+            <!-- Game Controls -->
+            <div style="border-top: 1px solid #333; padding-top: 15px;">
+                <button onclick="togglePause()"
+                    style="background: #ff4400; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; margin-bottom: 10px; font-size: 14px;">
+                    Pause Game
+                </button>
+                <button onclick="toggleCamera()"
+                    style="background: #007bff; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; margin-bottom: 10px; font-size: 14px;">
+                    Switch Camera
+                </button>
+                <button onclick="muteAudio()"
+                    style="background: #666; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; margin-bottom: 10px; font-size: 14px;">
+                    Mute Audio
+                </button>
+                <button onclick="backToMainMenu()"
+                    style="background: #333; color: white; border: none; padding: 10px; border-radius: 5px; width: 100%; font-size: 14px;">
+                    Main Menu
+                </button>
+            </div>
+        </div>
+    </div>
+    <div class="mobile-menu-overlay"></div>
 
 
     <!-- NEW: Main Menu with 4 Buttons -->
@@ -236,10 +327,15 @@
     </div>
 
     <div id="touch-controls">
+        <div id="joystick-container">
+            <div id="joystick-head"></div>
+        </div>
         <div id="throttle-button" class="touch-button">Gas</div>
         <div id="brake-button" class="touch-button">Brake</div>
         <div id="reverse-button" class="touch-button">Rev</div>
     </div>
+
+
 
     <script type="importmap">
         {
@@ -254,12 +350,14 @@
     </script>
 
     <script type="module">
-        import { setupMenuNavigation } from './js/main.js';
+        import { setupMenuNavigation, toggleCamera } from './js/main.js';
         import { getAvailableTracks } from './js/Utils.js';
         import { initGame } from './js/main.js';
         import { loadTrackDefinition } from './js/TrackBuilder.js';
 
-        document.addEventListener('DOMContentLoaded', function() {
+        window.toggleCamera = toggleCamera;
+
+        document.addEventListener('DOMContentLoaded', function () {
             // Resume audio context (needed for modern browsers)
             if (window.AudioContext || window.webkitAudioContext) {
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -320,6 +418,97 @@
                 document.getElementById('touch-controls').style.display = 'block';
             }
         });
+    </script>
+    <script>
+        // Mobile menu functionality
+        let isMobileMenuOpen = false;
+
+        function toggleMobileMenu() {
+            const menuPanel = document.getElementById('mobile-menu-panel');
+            const overlay = document.querySelector('.mobile-menu-overlay');
+
+            if (!isMobileMenuOpen) {
+                menuPanel.style.right = '0';
+                if (overlay) overlay.style.display = 'block';
+                isMobileMenuOpen = true;
+            } else {
+                menuPanel.style.right = '-300px';
+                if (overlay) overlay.style.display = 'none';
+                isMobileMenuOpen = false;
+            }
+        }
+
+        function closeMobileMenu() {
+            const menuPanel = document.getElementById('mobile-menu-panel');
+            const overlay = document.querySelector('.mobile-menu-overlay');
+            menuPanel.style.right = '-300px';
+            if (overlay) overlay.style.display = 'none';
+            isMobileMenuOpen = false;
+        }
+
+        // Global functions for mobile menu buttons
+        function togglePause() {
+            if (window.togglePauseGame) {
+                window.togglePauseGame();
+            }
+            closeMobileMenu();
+        }
+
+        function toggleCamera() {
+            if (window.cameraManager) {
+                const cameraButton = document.querySelector('button[onclick="toggleCamera()"]');
+                if (cameraButton) {
+                    cameraButton.textContent = 'Camera Toggled!';
+                }
+                window.cameraManager.toggleCamera();
+                console.log('📷 Camera toggled');
+            } else {
+                console.warn('📷 Camera manager not available');
+            }
+            closeMobileMenu();
+        }
+
+        function muteAudio() {
+            if (window.audioManager) {
+                window.audioManager.toggleMute();
+            }
+            closeMobileMenu();
+        }
+
+        function backToMainMenu() {
+            if (window.cleanupGame) {
+                window.cleanupGame();
+            }
+            document.getElementById('pauseMenu').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'block';
+            closeMobileMenu();
+        }
+
+        // Initialize mobile menu when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function () {
+            // Create overlay for menu
+            const overlay = document.createElement('div');
+            overlay.className = 'mobile-menu-overlay';
+            overlay.addEventListener('click', closeMobileMenu);
+            document.body.appendChild(overlay);
+
+            // Setup mobile menu button
+            const mobileToggle = document.getElementById('mobile-menu-toggle');
+            if (mobileToggle) {
+                mobileToggle.addEventListener('click', toggleMobileMenu);
+
+                // Show on mobile devices
+                if ('ontouchstart' in window) {
+                    mobileToggle.style.display = 'block';
+                    document.getElementById('mobile-menu-panel').style.display = 'block';
+                }
+            }
+
+            
+
+           
+        });
+
     </script>
 </body>
 

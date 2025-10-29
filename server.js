@@ -1,20 +1,42 @@
 // server.js
-const WebSocket = require('ws');
-const { v4: uuidv4 } = require('uuid');
+import { WebSocketServer } from 'ws';
+import { v4 as uuidv4 } from 'uuid';
+import express from 'express';
+import path from 'path';
+import { fileURLToPath } from 'url';
 
 const CONFIG = {
     INPUT_SEND_RATE_HZ: 12,
 };
 
-const wss = new WebSocket.Server({ port: 8080 });
+// Fix for __dirname in ES modules
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// Add Express to serve static files
+const app = express();
+const PORT = 3000;
+
+// Serve static files from current directory
+app.use(express.static(path.join(__dirname)));
+
+// Create HTTP server
+const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`🏎️  F1 Racing Server running on http://localhost:${PORT}`);
+    console.log('📱 Mobile access: http://192.168.100.58:3000');
+});
+
+// Attach WebSocket server to the HTTP server
+const wss = new WebSocketServer({ server });
+
 const rooms = {};
 const clients = {};
 
-console.log('🏎️  F1 Multiplayer Server is running on ws://localhost:8080');
+console.log('🎮 WebSocket server running on port', PORT);
 
 wss.on('connection', ws => {
     const clientId = uuidv4();
-    clients[clientId] = { ws, roomId: null, lastState: null }; // ✅ ADD lastState
+    clients[clientId] = { ws, roomId: null, lastState: null };
     ws.send(JSON.stringify({ type: 'welcome', clientId }));
     ws.on('message', message => handleMessage(clientId, message));
     ws.on('close', () => handleDisconnect(clientId));
@@ -23,7 +45,7 @@ wss.on('connection', ws => {
 function handleMessage(clientId, message) {
     try {
         const data = JSON.parse(message);
-        console.log(`Received ${data.type} from ${clientId.substring(0, 8)}`); // ✅ DEBUG
+        console.log(`Received ${data.type} from ${clientId.substring(0, 8)}`);
         
         switch (data.type) {
             case 'createRoom': handleCreateRoom(clientId, data); break;
@@ -32,9 +54,9 @@ function handleMessage(clientId, message) {
             case 'input':
                 const player = clients[clientId];
                 if (player?.roomId && rooms[player.roomId]?.players[clientId]) {
-                    // ✅ FIX: Store the state properly
+                    // Store the state properly
                     rooms[player.roomId].players[clientId].state = data.state;
-                    // ✅ ALSO store in client for backup
+                    // ALSO store in client for backup
                     clients[clientId].lastState = data.state;
                 }
                 break;
@@ -67,7 +89,7 @@ function handleJoinRoom(clientId, data) {
     room.players[clientId] = { 
         id: clientId, 
         name: playerName, 
-        state: { position: { x: 0, z: 0 }, rotationAngle: 0 } // ✅ INITIAL STATE
+        state: { position: { x: 0, z: 0 }, rotationAngle: 0 }
     };
     
     const playersList = Object.values(room.players).map(p => ({ id: p.id, name: p.name }));
@@ -135,7 +157,7 @@ function broadcastToRoom(roomId, message, excludeClientId = null) {
     console.log(`Broadcast ${message.type} to ${sentCount} players in room ${roomId}`);
 }
 
-// ✅ FIXED: Proper state collection and broadcasting
+// Proper state collection and broadcasting
 setInterval(() => {
     for (const roomId in rooms) {
         const room = rooms[roomId];
@@ -145,7 +167,7 @@ setInterval(() => {
             
             for (const clientId in room.players) {
                 const player = room.players[clientId];
-                // ✅ FIX: Use the state stored in the room player object
+                // Use the state stored in the room player object
                 if (player.state && player.state.position && player.state.rotationAngle !== undefined) {
                     states[clientId] = {
                         x: player.state.position.x,
@@ -154,7 +176,7 @@ setInterval(() => {
                     };
                     hasValidStates = true;
                 } else {
-                    // ✅ FIX: Use backup state from client or default
+                    // Use backup state from client or default
                     const client = clients[clientId];
                     if (client && client.lastState) {
                         states[clientId] = {

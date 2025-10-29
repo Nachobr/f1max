@@ -11,7 +11,7 @@ export class TouchControls {
             throttle: this._createButton('throttle-button', 'Throttle'),
             brake: this._createButton('brake-button', 'Brake')
         };
-        
+
         this.container.style.display = this._isTouchDevice() ? 'block' : 'none';
     }
 
@@ -20,12 +20,14 @@ export class TouchControls {
     }
 
     _createJoystick() {
-        const joystickContainer = document.createElement('div');
-        joystickContainer.id = 'joystick-container';
-        const joystickHead = document.createElement('div');
-        joystickHead.id = 'joystick-head';
-        joystickContainer.appendChild(joystickHead);
-        this.container.appendChild(joystickContainer);
+        // Use existing elements instead of creating new ones
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickHead = document.getElementById('joystick-head');
+
+        if (!joystickContainer || !joystickHead) {
+            console.error('Joystick elements not found in DOM');
+            return { horizontal: 0, vertical: 0 };
+        }
 
         let active = false;
         let initialX, initialY;
@@ -78,11 +80,17 @@ export class TouchControls {
     }
 
     _createButton(id, text) {
-        const button = document.createElement('div');
-        button.id = id;
-        button.className = 'touch-button';
-        button.textContent = text;
-        this.container.appendChild(button);
+        // Use existing button instead of creating a new one
+        const button = document.getElementById(id);
+        if (!button) {
+            console.error(`Button ${id} not found in DOM`);
+            return { pressed: false };
+        }
+
+        // Set the text if provided (optional)
+        if (text) {
+            button.textContent = text;
+        }
 
         const state = { pressed: false };
 
@@ -99,5 +107,34 @@ export class TouchControls {
         }, { passive: false });
 
         return state;
+    }
+    // Add to the TouchControls class
+    hideJoystick() {
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickHead = document.getElementById('joystick-head');
+
+        // Use visibility instead of display to preserve layout
+        if (joystickContainer) {
+            joystickContainer.style.visibility = 'hidden';
+            joystickContainer.style.pointerEvents = 'none';
+        }
+        if (joystickHead) {
+            joystickHead.style.visibility = 'hidden';
+        }
+        console.log('🎮 Joystick hidden');
+    }
+
+    showJoystick() {
+        const joystickContainer = document.getElementById('joystick-container');
+        const joystickHead = document.getElementById('joystick-head');
+
+        if (joystickContainer) {
+            joystickContainer.style.visibility = 'visible';
+            joystickContainer.style.pointerEvents = 'auto';
+        }
+        if (joystickHead) {
+            joystickHead.style.visibility = 'visible';
+        }
+        console.log('🎮 Joystick shown');
     }
 }

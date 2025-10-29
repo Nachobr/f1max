@@ -1,5 +1,3 @@
-// --- START OF FILE main.js (Optimized with Memory Monitoring) ---
-
 import * as THREE from 'three';
 import { scene, camera, renderer } from './SceneSetup.js';
 import { gameState } from './State.js';
@@ -16,8 +14,10 @@ import { TouchControls } from './TouchControls.js';
 import { CameraManager } from './CameraManager.js';
 import { MemoryMonitor, getMemoryStatus } from './MemoryMonitor.js';
 import { TextureManager } from './TextureManager.js';
+import { GyroControls } from './GyroControls.js';
 
 // Global variables
+let gyroControls;
 let cameraManager;
 let audioManager, networkManager, uiManager, touchControls, player;
 let memoryMonitor, textureManager;
@@ -41,12 +41,15 @@ const CAR_Y_OFFSET = 0.8;
 export async function initGame(trackName = 'Monza Standard', isMultiplayer = false) {
     gameStarted = false;
     gameState.isMultiplayer = isMultiplayer;
-    
+    gyroControls = new GyroControls();
+
+    // Add this line to make it available globally
+    window.gyroControls = gyroControls;
     // Initialize memory monitoring system
     memoryMonitor = new MemoryMonitor(renderer, scene);
     textureManager = new TextureManager(renderer);
-    
-    console.log('🎮 Memory monitoring system initialized');
+
+    //console.log('🎮 Memory monitoring system initialized');
 
     try {
         const car = await createF1Car();
@@ -82,14 +85,14 @@ export async function initGame(trackName = 'Monza Standard', isMultiplayer = fal
         gameState.keys[key] = true;
         if (key === 'p') togglePause();
         if (key === 'c') cameraManager.toggleCamera();
-        
+
         // Debug keys for memory monitoring
         if (key === 'm' && memoryMonitor) {
-            console.log('🔍 Manual memory check triggered');
+            // console.log('🔍 Manual memory check triggered');
             memoryMonitor.debugMemoryUsage();
         }
         if (key === 'l' && memoryMonitor) {
-            console.log('🧹 Manual cleanup triggered');
+            // console.log('🧹 Manual cleanup triggered');
             memoryMonitor.forceCleanup();
         }
     };
@@ -112,6 +115,125 @@ export async function initGame(trackName = 'Monza Standard', isMultiplayer = fal
 
     handleButtonClick(uiManager.resumeButton, () => togglePause());
     handleButtonClick(document.getElementById('mute-button'), () => audioManager.toggleMute());
+
+    // Gyro toggle event listeners
+    function showControlNotification(message) {
+        let notification = document.getElementById('control-notification');
+        if (!notification) {
+            notification = document.createElement('div');
+            notification.id = 'control-notification';
+            notification.style.cssText = `
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 20px;
+            border-radius: 5px;
+            z-index: 1000;
+            font-family: Arial, sans-serif;
+            font-size: 16px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        `;
+            document.body.appendChild(notification);
+        }
+
+        notification.textContent = message;
+        notification.style.opacity = '1';
+
+        setTimeout(() => {
+            notification.style.opacity = '0';
+        }, 2000);
+    }
+
+
+    const mobileGyroToggle = document.getElementById('mobile-gyro-toggle');
+
+
+    if (mobileGyroToggle) {
+        console.log('🎮 Setting up gyro toggle listeners');
+
+        const handleGyroToggle = async (shouldEnable) => {
+            console.log('🎮 Gyro toggle changed to:', shouldEnable);
+
+            if (gyroControls) {
+                if (shouldEnable) {
+                    console.log('🎮 Attempting to enable gyro...');
+                    const success = await gyroControls.enable();
+                    if (success) {
+                        console.log('🎮 Gyro enabled successfully');
+                        if (touchControls) {
+                            touchControls.hideJoystick();
+                        }
+                        showControlNotification('Tilt Steering Enabled - Tilt device to steer');
+
+                        // Clear any residual steering input
+                        gameState.keys['a'] = false;
+                        gameState.keys['d'] = false;
+                    } else {
+                        mobileGyroToggle.checked = false;
+                        showControlNotification('Gyro Access Denied - Using touch controls');
+                        if (touchControls) {
+                            touchControls.showJoystick();
+                        }
+                    }
+                } else {
+                    console.log('🎮 Disabling gyro...');
+                    gyroControls.disable();
+                    if (touchControls) {
+                        touchControls.showJoystick();
+                    }
+                    showControlNotification('Touch Steering Enabled');
+
+                    // Clear steering input
+                    gameState.keys['a'] = false;
+                    gameState.keys['d'] = false;
+                }
+            } else {
+                console.error('❌ gyroControls not available');
+                mobileGyroToggle.checked = false;
+            }
+        };
+
+        // Mobile → Main
+        mobileGyroToggle.addEventListener('change', function (e) {
+
+            handleGyroToggle(e.target.checked);
+        });
+
+        // Main → Mobile
+
+    } else {
+        console.warn('❌ Gyro toggle elements not found:', {
+
+            mobile: !!mobileGyroToggle
+        });
+    }
+
+    const mobileSensitivity = document.getElementById('mobile-gyro-sensitivity');
+    const mobileCalibrate = document.getElementById('mobile-gyro-calibrate');
+
+    if (mobileSensitivity) {
+        mobileSensitivity.addEventListener('input', function (e) {
+            const value = parseFloat(e.target.value);
+            if (gyroControls) {
+                gyroControls.setSensitivity(value);
+            }
+            document.getElementById('mobile-sensitivity-value').textContent = value.toFixed(1);
+        });
+    }
+
+    if (mobileCalibrate) {
+        mobileCalibrate.addEventListener('click', function () {
+            if (gyroControls) {
+                gyroControls.calibrate();
+                showControlNotification('Gyro Calibrated');
+            }
+        });
+    }
 
     // Add memory debug button if available in UI
     const debugMemoryButton = document.getElementById('debug-memory');
@@ -205,6 +327,16 @@ export async function initGame(trackName = 'Monza Standard', isMultiplayer = fal
     }
 }
 
+export function toggleCamera() {
+    if (cameraManager) {
+        cameraManager.toggleCamera();
+
+    }
+}
+
+// Make available for mobile menu
+window.toggleCamera = toggleCamera;
+
 // --- MENU NAVIGATION FUNCTIONS ---
 export function setupMenuNavigation() {
     document.getElementById('multiplayer-button').addEventListener('click', function () {
@@ -265,13 +397,13 @@ export function setupMenuNavigation() {
             networkManager.disconnect();
         }
         networkManager = null;
-        
+
         // Cleanup memory monitoring
         if (memoryMonitor) {
             memoryMonitor.dispose();
             memoryMonitor = null;
         }
-        
+
         if (textureManager) {
             textureManager.disposeAll();
             textureManager = null;
@@ -323,7 +455,7 @@ function animate(currentTime = 0) {
     // Update memory monitoring system
     if (memoryMonitor) {
         memoryMonitor.update();
-        
+
         // Update HUD with memory status every 2 seconds
         if (frameCounter % 120 === 0 && uiManager) {
             const memoryStatus = getMemoryStatus();
@@ -339,9 +471,19 @@ function animate(currentTime = 0) {
 
     // --- INPUT UPDATES ---
     if (isTouchDevice && touchControls) {
+
         gameState.keys['w'] = touchControls.buttons.throttle.pressed;
         gameState.keys['s'] = touchControls.buttons.brake.pressed;
-        const steer = touchControls.joystick.horizontal;
+
+        let steer = 0;
+
+        // Priority: Gyro controls if enabled, otherwise touch joystick
+        if (gyroControls && gyroControls.enabled) {
+            steer = gyroControls.getSteering();
+        } else {
+            steer = touchControls.joystick.horizontal;
+        }
+
         gameState.keys['a'] = steer < -0.2;
         gameState.keys['d'] = steer > 0.2;
     }
@@ -351,7 +493,8 @@ function animate(currentTime = 0) {
         prevCarPosition.copy(currentCarPosition);
         prevCarRotation.copy(currentCarRotation);
 
-        const physicsResult = updatePhysics(gameState.keys, carState, trackData.curve, trackData.divisions, roadHalfWidth);
+        const gyroSteering = (gyroControls && gyroControls.enabled) ? gyroControls.getSteering() : null;
+        const physicsResult = updatePhysics(gameState.keys, carState, trackData.curve, trackData.divisions, roadHalfWidth, gyroSteering);
         const { position, rotationAngle, speed, isWrongWay, turnDirection } = physicsResult;
 
         lastTurnDirection = turnDirection;
@@ -371,7 +514,14 @@ function animate(currentTime = 0) {
                 wheels.frontRightMeshes.forEach(mesh => mesh.rotation.x -= rotationDelta);
             }
 
-            const steerAngle = -turnDirection * 0.4;
+            let steerAngle = 0;
+            if (gyroControls && gyroControls.enabled) {
+                // Use gyro steering value directly
+                steerAngle = -gyroControls.getSteering() * 0.4;
+            } else {
+                // Use physics turn direction
+                steerAngle = -turnDirection * 0.4;
+            }
             if (wheelPivots && wheelPivots.frontLeft) wheelPivots.frontLeft.rotation.z = steerAngle;
             if (wheelPivots && wheelPivots.frontRight) wheelPivots.frontRight.rotation.z = steerAngle;
         }
@@ -421,36 +571,46 @@ function animate(currentTime = 0) {
 
 export function cleanupGame() {
     gameStarted = false;
-    
+
+    if (gyroControls) {
+        gyroControls.dispose();
+        gyroControls = null;
+    }
+
     // Cleanup memory monitoring system
     if (memoryMonitor) {
         memoryMonitor.dispose();
         memoryMonitor = null;
     }
-    
+
     if (textureManager) {
         textureManager.disposeAll();
         textureManager = null;
     }
-    
+
     if (player && scene) scene.remove(player);
     if (audioManager) audioManager.destroy();
     if (networkManager) networkManager.disconnect();
 
     window.removeEventListener("keydown", keydownHandler);
     window.removeEventListener("keyup", keyupHandler);
-    
-    console.log('🎮 Game cleanup completed');
+
+    //console.log('🎮 Game cleanup completed');
 }
 
 export { loadTrackAndRestart as loadTrackByName };
 
 document.addEventListener('DOMContentLoaded', async () => {
     setupMenuNavigation();
+
+
+
     if ('ontouchstart' in window) {
         document.getElementById('touch-controls').style.display = 'block';
+        document.getElementById('mobile-menu-toggle').style.display = 'block';
+        //document.getElementById('gyro-controls').style.display = 'block';
     }
-    
-    console.log('🚀 Game initialized with memory monitoring');
-    console.log('💡 Press M for memory check, L for cleanup');
+    //window.gyroControls = null
+    //console.log('🚀 Game initialized with memory monitoring');
+    //console.log('💡 Press M for memory check, L for cleanup');
 });

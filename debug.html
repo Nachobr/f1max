@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Gyro Debug</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="background:black;color:white;padding:20px;font-family:sans-serif;">
+    <h2>Gyro Debug Console</h2>
+    <div id="log" style="background:#333;padding:10px;height:300px;overflow:auto;font-family:monospace;"></div>
+    <button onclick="testGyro()" style="padding:10px;margin:10px;">Test Gyro</button>
+    <button onclick="clearLog()" style="padding:10px;margin:10px;">Clear Log</button>
+
+    <script>
+        const log = document.getElementById('log');
+        
+        function addLog(message) {
+            log.innerHTML += message + '<br>';
+            log.scrollTop = log.scrollHeight;
+        }
+
+        function testGyro() {
+            addLog('=== Testing Gyro ===');
+            addLog('UserAgent: ' + navigator.userAgent);
+            addLog('Protocol: ' + window.location.protocol);
+            addLog('DeviceOrientationEvent: ' + (typeof DeviceOrientationEvent));
+            addLog('requestPermission: ' + (typeof DeviceOrientationEvent?.requestPermission));
+            
+            if (typeof DeviceOrientationEvent === 'undefined') {
+                addLog('❌ DeviceOrientationEvent not supported');
+                return;
+            }
+
+            let eventCount = 0;
+            const handler = (e) => {
+                eventCount++;
+                addLog(`Event ${eventCount}: alpha=${e.alpha?.toFixed(1)}, beta=${e.beta?.toFixed(1)}, gamma=${e.gamma?.toFixed(1)}`);
+                
+                if (eventCount >= 5) {
+                    window.removeEventListener('deviceorientation', handler);
+                    addLog('✅ Gyro is working!');
+                }
+            };
+
+            window.addEventListener('deviceorientation', handler);
+            
+            setTimeout(() => {
+                window.removeEventListener('deviceorientation', handler);
+                if (eventCount === 0) {
+                    addLog('❌ No gyro events received');
+                }
+            }, 3000);
+        }
+
+        function clearLog() {
+            log.innerHTML = '';
+        }
+
+        // Auto-test on load
+        setTimeout(testGyro, 1000);
+    </script>
+</body>
+</html>
