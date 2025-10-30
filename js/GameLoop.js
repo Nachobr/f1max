@@ -5,6 +5,7 @@ import { carState, updatePhysics } from './CarPhysics.js';
 import { trackData, roadHalfWidth } from './TrackBuilder.js';
 import { checkLapCompletion } from './GameStateManager.js';
 import { getMemoryStatus } from './MemoryMonitor.js';
+import { scene, camera, renderer } from './SceneSetup.js';
 
 export class GameLoop {
     constructor() {
@@ -83,7 +84,7 @@ export class GameLoop {
         this.updateVisuals();
         this.updateNetwork();
         this.render();
-        
+        renderer.render(scene, camera);
         this.frameCounter++;
         if (this.frameCounter >= 1000) this.frameCounter = 0;
     }

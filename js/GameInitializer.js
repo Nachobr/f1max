@@ -24,11 +24,20 @@ export class GameInitializer {
         this.memoryMonitor = null;
         this.textureManager = null;
         this.cameraManager = null;
-        console.log('🆕 New InputManager instance created');
+        
     }
 
     async initGame(trackName = 'Monza Standard', isMultiplayer = false) {
-        console.log('🎮 initGame called with track:', trackName, 'multiplayer:', isMultiplayer);
+        if (this.initGameInProgress) {
+            console.warn('🚫 initGame already in progress, skipping duplicate call');
+            return;
+        }
+
+        this.initGameInProgress = true;
+        console.trace(`🎯 INIT GAME CALLED - Track: ${trackName}, Multiplayer: ${isMultiplayer}, Called from:`);
+
+        this.initGameCallId = Math.random().toString(36).substr(2, 9);
+        console.log(`🔢 InitGame Instance ID: ${this.initGameCallId}`);
         this.gameStarted = false;
         gameState.isMultiplayer = isMultiplayer;
 

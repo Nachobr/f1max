@@ -1,12 +1,11 @@
-import { GameInitializer, setupMenuNavigation, loadTrackByName } from './GameInitializer.js';
+import { setupMenuNavigation, loadTrackByName } from './GameInitializer.js';
 import { togglePause } from './GameStateManager.js';
 
-// Global initialization
-let gameInitializer;
+
 
 
 document.addEventListener('DOMContentLoaded', async () => {
-    window.gameInitializer = gameInitializer;
+    
 
     window.cameraManager = gameInitializer.cameraManager;
     // Setup menu navigation
