@@ -42,7 +42,7 @@ function initializeMaterials() {
 
 // --- IMPROVED CLEAR TRACK FUNCTION ---
 export function clearTrack(scene) {
-    console.log(`🧹 Clearing track - Meshes: ${trackData.sceneMeshes.length}`);
+    //console.log(`🧹 Clearing track - Meshes: ${trackData.sceneMeshes.length}`);
     
     trackData.sceneMeshes.forEach(mesh => {
         if (scene) scene.remove(mesh);
@@ -63,7 +63,7 @@ export function clearTrack(scene) {
     });
     
     trackData.sceneMeshes = [];
-    console.log(`✅ Track cleared`);
+    //console.log(`✅ Track cleared`);
 }
 
 // Helper functions to check if geometry/material is shared
@@ -104,7 +104,7 @@ export function disposeAllTrackResources() {
     baseGeometry = null;
 }
 
-// --- YOUR EXISTING FUNCTIONS WITH OPTIMIZATIONS ---
+
 
 function smoothTrackCorners(points, smoothness = 0.3, maxAngle = 60) {
     // Keep your existing implementation
@@ -163,11 +163,11 @@ export function loadTrackDefinition(trackName) {
                 const rawPoints = JSON.parse(data);
                 points = rawPoints.map(p => new THREE.Vector3(parseFloat(p.x), 0, parseFloat(p.z)));
             } else {
-                console.warn(`Track '${trackName}' not found. Loading default track instead.`);
+               // console.warn(`Track '${trackName}' not found. Loading default track instead.`);
                 points = DEFAULT_TRACK_POINTS;
             }
         } catch (e) {
-            console.error("Error loading track from localStorage:", e);
+            //console.error("Error loading track from localStorage:", e);
             points = DEFAULT_TRACK_POINTS;
         }
     }
@@ -175,7 +175,7 @@ export function loadTrackDefinition(trackName) {
     const smoothedPoints = smoothTrackCorners(points, 0.3, 60);
     
     if (smoothedPoints.length < 3) {
-        console.error("Track has insufficient points. Loading default.");
+        //console.error("Track has insufficient points. Loading default.");
         points = DEFAULT_TRACK_POINTS;
     }
     
@@ -185,7 +185,7 @@ export function loadTrackDefinition(trackName) {
 // --- OPTIMIZED ROAD MESH GENERATION ---
 function generateRoadMesh(scene) {
     if (!trackData.curve) {
-        console.error("No track curve defined!");
+        //console.error("No track curve defined!");
         return;
     }
 
@@ -346,7 +346,7 @@ function generateMarkingsAndWalls(scene) {
 }
 
 export function generateTrackMesh(scene) {
-    console.log(`🛠️ Generating track mesh - Current meshes: ${trackData.sceneMeshes.length}`);
+    //console.log(`🛠️ Generating track mesh - Current meshes: ${trackData.sceneMeshes.length}`);
     
     // Clear any existing track first
     clearTrack(scene);
@@ -356,5 +356,5 @@ export function generateTrackMesh(scene) {
     generateStartFinishLine(scene);
     generateMarkingsAndWalls(scene);
     
-    console.log(`✅ Track generation complete - Total meshes: ${trackData.sceneMeshes.length}`);
+    //console.log(`✅ Track generation complete - Total meshes: ${trackData.sceneMeshes.length}`);
 }

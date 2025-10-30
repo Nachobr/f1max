@@ -22,23 +22,23 @@ export class GyroControls {
         screen.orientation?.addEventListener('change', () => this.checkOrientation());
 
         this.checkGyroSupport();
-        console.log('🎮 GyroControls initialized', {
-            hasGyro: this.hasGyro,
-            requiresHTTPS: this.requiresHTTPS,
-            protocol: window.location.protocol,
-            orientation: this.isLandscape ? 'landscape' : 'portrait'
-        });
+        //console.log('🎮 GyroControls initialized', {
+        //    hasGyro: this.hasGyro,
+        //    requiresHTTPS: this.requiresHTTPS,
+        //    protocol: window.location.protocol,
+        //    orientation: this.isLandscape ? 'landscape' : 'portrait'
+        //});
     }
 
     checkOrientation() {
         const wasLandscape = this.isLandscape;
         this.isLandscape = window.innerWidth > window.innerHeight;
 
-        console.log('🎮 Screen orientation:', this.isLandscape ? 'landscape' : 'portrait');
+        //console.log('🎮 Screen orientation:', this.isLandscape ? 'landscape' : 'portrait');
 
         // Don't auto-calibrate - let user manually calibrate when they want
         if (wasLandscape !== this.isLandscape && this.enabled) {
-            console.log('🎮 Orientation changed - please recalibrate if needed');
+            //console.log('🎮 Orientation changed - please recalibrate if needed');
             this.showNotification('Orientation changed - recalibrate if needed');
         }
     }
@@ -69,25 +69,25 @@ export class GyroControls {
 
     async enable() {
         if (!this.isMobileDevice()) {
-            console.warn('📱 Gyro controls only available on mobile devices');
+            //console.warn('📱 Gyro controls only available on mobile devices');
             this.showNotification('Gyro only works on mobile devices');
             return false;
         }
 
         if (!this.hasGyro) {
-            console.warn('📱 Device does not support gyroscope');
+            //console.warn('📱 Device does not support gyroscope');
             this.showNotification('Your device does not support gyroscope');
             return false;
         }
 
         if (this.requiresHTTPS) {
-            console.warn('📱 Gyro requires HTTPS or localhost');
+            //console.warn('📱 Gyro requires HTTPS or localhost');
             this.showNotification('Gyro requires HTTPS. Use a local server or HTTPS.');
             return false;
         }
 
         if (!this.testEventReceived) {
-            console.warn('📱 No gyro events received - may not be supported');
+            //console.warn('📱 No gyro events received - may not be supported');
             this.showNotification('Gyro not available. Try Chrome browser.');
             return false;
         }
@@ -95,10 +95,10 @@ export class GyroControls {
         try {
             // iOS 13+ permission handling
             if (typeof DeviceOrientationEvent.requestPermission === 'function') {
-                console.log('📱 Requesting iOS gyro permission...');
+                //console.log('📱 Requesting iOS gyro permission...');
                 const permission = await DeviceOrientationEvent.requestPermission();
                 if (permission !== 'granted') {
-                    console.warn('❌ Gyroscope permission denied');
+                    //console.warn('❌ Gyroscope permission denied');
                     this.showNotification('Gyro permission denied');
                     return false;
                 }
@@ -107,12 +107,12 @@ export class GyroControls {
             this.enabled = true;
             // Don't auto-calibrate - let user decide when to calibrate
             window.addEventListener('deviceorientation', this.boundHandler);
-            console.log('🎮 Gyro controls enabled successfully');
+            //console.log('🎮 Gyro controls enabled successfully');
             this.showNotification('Tilt Steering Enabled - Tilt device left/right to steer');
             return true;
 
         } catch (error) {
-            console.error('❌ Error enabling gyro controls:', error);
+            //console.error('❌ Error enabling gyro controls:', error);
             this.showNotification('Gyro error: ' + error.message);
             return false;
         }
@@ -122,7 +122,7 @@ export class GyroControls {
         this.enabled = false;
         this.steeringValue = 0;
         window.removeEventListener('deviceorientation', this.boundHandler);
-        console.log('🎮 Gyro controls disabled');
+        //console.log('🎮 Gyro controls disabled');
         this.showNotification('Touch Steering Enabled');
     }
 
@@ -136,7 +136,7 @@ export class GyroControls {
         // Simple one-click calibration - set current gamma as neutral
         // The next orientation event will capture the current position
         this.calibrationRequested = true;
-        console.log('🎮 Calibration requested - next tilt position will be set as neutral');
+        //console.log('🎮 Calibration requested - next tilt position will be set as neutral');
         this.showNotification('Calibrating... Tilt to desired neutral position');
     }
 
@@ -164,7 +164,7 @@ export class GyroControls {
         if (this.calibrationRequested) {
             this.calibrationOffset = tilt;
             this.calibrationRequested = false;
-            console.log('🎮 Neutral position set to:', this.calibrationOffset.toFixed(1));
+            //console.log('🎮 Neutral position set to:', this.calibrationOffset.toFixed(1));
             this.showNotification('Neutral position set!');
         }
 
@@ -179,10 +179,10 @@ export class GyroControls {
             this.steeringValue = 0;
         }
 
-        console.log('🎮 Gyro - Gamma:', event.gamma?.toFixed(1),
-            'Calibrated Tilt:', calibratedTilt.toFixed(1),
-            'Steering:', this.steeringValue.toFixed(3),
-            'Mode:', this.isLandscape ? 'landscape' : 'portrait');
+        //console.log('🎮 Gyro - Gamma:', event.gamma?.toFixed(1),
+        //    'Calibrated Tilt:', calibratedTilt.toFixed(1),
+        //    'Steering:', this.steeringValue.toFixed(3),
+        //    'Mode:', this.isLandscape ? 'landscape' : 'portrait');
     }
     toggleTiltMode() {
         if (this.tiltMode === 'gamma') {
@@ -195,7 +195,7 @@ export class GyroControls {
 
         // Reset calibration when switching modes
         this.calibrationOffset = 0;
-        console.log('🎮 Tilt mode changed to:', this.tiltMode);
+        //console.log('🎮 Tilt mode changed to:', this.tiltMode);
     }
 
 
@@ -214,7 +214,7 @@ export class GyroControls {
         if (window.showControlNotification) {
             window.showControlNotification(message);
         } else {
-            console.log('📢 ' + message);
+            //console.log('📢 ' + message);
         }
     }
 

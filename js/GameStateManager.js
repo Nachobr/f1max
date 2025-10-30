@@ -6,7 +6,7 @@ import { getTrackProperties } from './Utils.js';
 let uiManager;
 let audioManager;
 let networkManager;
-let renderer; // Need renderer reference for memory logging
+let renderer;
 
 export function initGameManager(ui, audio, network) {
     uiManager = ui;
@@ -14,18 +14,15 @@ export function initGameManager(ui, audio, network) {
     networkManager = network;
 }
 
-// Add renderer reference for memory monitoring
 export function setRenderer(ref) {
     renderer = ref;
 }
 
-/** Toggles the game's paused state. */
 export function togglePause() {
     gameState.isPaused = !gameState.isPaused;
     uiManager.togglePauseMenu();
 }
 
-/** Handles the logic for completing a lap. */
 export function handleLapFinish() {
     const currentTime = performance.now();
     const newLapTime = currentTime - gameState.lapStartTime;
@@ -40,29 +37,27 @@ export function handleLapFinish() {
         gameState.isPaused = true;
         audioManager.playFinishSound();
         uiManager.showRaceResults();
-        return true; // Race is finished
+        return true;
     }
 
     gameState.currentLap++;
-    return false; // Race continues
+    return false;
 }
 
-/** Resets and restarts the game with a given track. */
 export function loadTrackAndRestart(trackName, scene, camera, player) {
     //console.log(`🔄 Loading track ${trackName} - Current geometries: ${renderer ? renderer.info.memory.geometries : 'N/A'}`);
-    
-    // COMPREHENSIVE CLEANUP BEFORE LOADING NEW TRACK
+
+    // Clear existing track
     if (trackData.sceneMeshes?.length > 0) {
         //console.log(`🧹 Clearing ${trackData.sceneMeshes.length} track meshes`);
         clearTrack(scene);
     }
-    
+
     // Cleanup remote players
     if (gameState.remotePlayers && gameState.remotePlayers.size > 0) {
         //console.log(`🧹 Clearing ${gameState.remotePlayers.size} remote players`);
         gameState.remotePlayers.forEach(({ mesh }) => {
             if (mesh && scene) scene.remove(mesh);
-            // Dispose remote player geometries/materials if needed
             if (mesh && mesh.geometry) mesh.geometry.dispose();
             if (mesh && mesh.material) {
                 if (Array.isArray(mesh.material)) {
@@ -89,10 +84,11 @@ export function loadTrackAndRestart(trackName, scene, camera, player) {
     carState.velocityAngle = rotationAngle;
     carState.speed = 0;
     carState.currentT = 0;
-    
+
     if (player) {
         player.position.copy(carState.position);
         player.rotation.y = carState.rotationAngle;
+        //console.log(`🚗 Player positioned at:`, carState.position);
     }
 
     // Reset game state
@@ -103,42 +99,48 @@ export function loadTrackAndRestart(trackName, scene, camera, player) {
     gameState.startTime = performance.now();
     gameState.lapStartTime = performance.now();
     gameState.isPaused = false;
-    
+
     if (uiManager) {
         uiManager.togglePauseMenu();
         uiManager.hideNetworkMenu();
     }
 
-    // Reset camera position
+    // FIXED: Better camera positioning
     if (camera && startPosition) {
-        const carForwardAngle = rotationAngle - Math.PI / 2;
-        const backwardX = startPosition.x - 12 * Math.cos(carForwardAngle);
-        const backwardZ = startPosition.z - 12 * Math.sin(carForwardAngle);
-        camera.position.set(backwardX, 6, backwardZ);
+        // Position camera behind and above the car
+        const carForwardAngle = rotationAngle;
+        const cameraDistance = 15;
+        const cameraHeight = 8;
+
+        const cameraX = startPosition.x - Math.sin(carForwardAngle) * cameraDistance;
+        const cameraZ = startPosition.z - Math.cos(carForwardAngle) * cameraDistance;
+
+        camera.position.set(cameraX, cameraHeight, cameraZ);
+        camera.lookAt(startPosition.x, startPosition.y + 2, startPosition.z);
+
+        //console.log(`📷 Camera positioned at:`, camera.position, `looking at:`, startPosition);
     }
-    
+
     if (audioManager) {
         audioManager.stopAll();
         audioManager.startEngine();
     }
-    
+
     //console.log(`✅ Track loaded - New geometries: ${renderer ? renderer.info.memory.geometries : 'N/A'}`);
     //console.log(`📊 Track meshes: ${trackData.sceneMeshes ? trackData.sceneMeshes.length : 0}`);
 }
 
-/** Checks if a lap has been completed. */
 export function checkLapCompletion(position, speed) {
     if (!trackData.curve) return false;
-    
+
     const trackProps = getTrackProperties(position, trackData.curve, trackData.divisions, carState.currentT);
     carState.currentT = trackProps.closestT;
 
-    // Lap Detection Logic
     if (gameState.previousT > 0.95 && carState.currentT < 0.05 && speed > 0.5) {
         if (handleLapFinish()) {
-            return true; // Race finished
+            return true;
         }
     }
     gameState.previousT = carState.currentT;
-    return false; // Race continues
+    return false;
 }

@@ -1,3 +1,4 @@
+// MemoryMonitor.js
 export class MemoryMonitor {
     constructor(renderer, scene) {
         this.renderer = renderer;
@@ -35,14 +36,14 @@ export class MemoryMonitor {
                 }
             }
         } catch (e) {
-            console.warn('Could not access VRAM info:', e);
+            //console.warn('Could not access VRAM info:', e);
         }
         
         return vramInfo;
     }
 
     debugMemoryUsage() {
-        console.group('🚀 MEMORY DEBUG INFO');
+        //console.group('🚀 MEMORY DEBUG INFO');
         
         // Three.js memory stats
         if (this.renderer) {
@@ -52,7 +53,7 @@ export class MemoryMonitor {
                 programs: this.renderer.info.programs?.length || 'N/A'
             };
             
-            console.log('📊 Three.js Memory:', threeInfo);
+            //console.log('📊 Three.js Memory:', threeInfo);
             
             const renderInfo = {
                 calls: this.renderer.info.render.calls,
@@ -61,7 +62,7 @@ export class MemoryMonitor {
                 points: this.renderer.info.render.points
             };
             
-            console.log('🎯 Three.js Render:', renderInfo);
+            //console.log('🎯 Three.js Render:', renderInfo);
         }
         
         // JavaScript heap
@@ -72,15 +73,15 @@ export class MemoryMonitor {
             
             this.stats.maxHeapUsage = Math.max(this.stats.maxHeapUsage, used);
             
-            console.log('💾 JavaScript Heap:', {
-                used: `${used.toFixed(2)} MB`,
-                total: `${total.toFixed(2)} MB`,
-                percentage: `${percentage.toFixed(1)}%`
-            });
+            //console.log('💾 JavaScript Heap:', {
+            //    used: `${used.toFixed(2)} MB`,
+            //    total: `${total.toFixed(2)} MB`,
+            //    percentage: `${percentage.toFixed(1)}%`
+            //});
 
             // Warning for high memory usage
             if (used > 500) {
-                console.warn('🚨 HIGH MEMORY USAGE DETECTED');
+                //console.warn('🚨 HIGH MEMORY USAGE DETECTED');
                 this.stats.leakDetections++;
             }
         }
@@ -102,17 +103,17 @@ export class MemoryMonitor {
                 if (child.isCamera) objectCounts.cameras++;
             });
             
-            console.log('🔄 Scene Objects:', objectCounts);
+            //console.log('🔄 Scene Objects:', objectCounts);
         }
         
         // VRAM info
         const vramInfo = this.checkVRAMUsage();
         if (vramInfo) {
-            console.log('🎮 VRAM Usage:', vramInfo);
+            //console.log('🎮 VRAM Usage:', vramInfo);
         }
         
-        console.log('📈 Memory Statistics:', this.stats);
-        console.groupEnd();
+        //console.log('📈 Memory Statistics:', this.stats);
+        //console.groupEnd();
         
         return this.stats;
     }
@@ -133,11 +134,11 @@ export class MemoryMonitor {
         
         // Detect significant increases
         if (previousCounts.geometries && currentCounts.geometries > previousCounts.geometries + 10) {
-            console.warn(`🔴 Possible geometry leak: ${previousCounts.geometries} → ${currentCounts.geometries}`);
+            //console.warn(`🔴 Possible geometry leak: ${previousCounts.geometries} → ${currentCounts.geometries}`);
         }
         
         if (previousCounts.textures && currentCounts.textures > previousCounts.textures + 5) {
-            console.warn(`🔴 Possible texture leak: ${previousCounts.textures} → ${currentCounts.textures}`);
+            //console.warn(`🔴 Possible texture leak: ${previousCounts.textures} → ${currentCounts.textures}`);
         }
         
         return currentCounts;
@@ -146,7 +147,7 @@ export class MemoryMonitor {
     forceCleanup() {
         if (!this.renderer || !this.scene) return;
         
-        console.log('🧹 Starting forced cleanup...');
+        //console.log('🧹 Starting forced cleanup...');
         
         let disposedCount = {
             geometries: 0,
@@ -188,10 +189,10 @@ export class MemoryMonitor {
         // Force garbage collection if available
         if (window.gc) {
             window.gc();
-            console.log('🔄 Forced garbage collection');
+            //console.log('🔄 Forced garbage collection');
         }
         
-        console.log('✅ Cleanup completed:', disposedCount);
+        //console.log('✅ Cleanup completed:', disposedCount);
         return disposedCount;
     }
 
@@ -216,7 +217,7 @@ export class MemoryMonitor {
     dispose() {
         this.renderer = null;
         this.scene = null;
-        console.log('MemoryMonitor disposed');
+        //console.log('MemoryMonitor disposed');
     }
 }
 
