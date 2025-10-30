@@ -226,11 +226,40 @@ export async function initGame(trackName = 'Monza Standard', isMultiplayer = fal
         });
     }
 
+    // SIMPLIFIED: Just use click/touch for calibration
     if (mobileCalibrate) {
         mobileCalibrate.addEventListener('click', function () {
             if (gyroControls) {
                 gyroControls.calibrate();
-                showControlNotification('Gyro Calibrated');
+            }
+        });
+
+        mobileCalibrate.addEventListener('touchstart', function (e) {
+            e.preventDefault();
+            if (gyroControls) {
+                gyroControls.calibrate();
+            }
+        });
+    }
+
+    const mobileTiltMode = document.getElementById('mobile-tilt-mode');
+
+    if (mobileTiltMode) {
+        mobileTiltMode.addEventListener('click', function () {
+            if (gyroControls) {
+                gyroControls.toggleTiltMode();
+                // Update button text
+                const currentMode = gyroControls.tiltMode === 'gamma' ? 'Left-Right' : 'Front-Back';
+                mobileTiltMode.textContent = 'Tilt Mode: ' + currentMode;
+            }
+        });
+
+        mobileTiltMode.addEventListener('touchstart', function (e) {
+            e.preventDefault();
+            if (gyroControls) {
+                gyroControls.toggleTiltMode();
+                const currentMode = gyroControls.tiltMode === 'gamma' ? 'Left-Right' : 'Front-Back';
+                mobileTiltMode.textContent = 'Tilt Mode: ' + currentMode;
             }
         });
     }
@@ -516,10 +545,13 @@ function animate(currentTime = 0) {
 
             let steerAngle = 0;
             if (gyroControls && gyroControls.enabled) {
-                // Use gyro steering value directly
-                steerAngle = -gyroControls.getSteering() * 0.4;
+                // Use gyro steering value directly (mobile)
+                steerAngle = gyroControls.getSteering() * 0.4;
+            } else if (isTouchDevice) {
+                // Touch device with joystick
+                steerAngle = turnDirection * 0.4;
             } else {
-                // Use physics turn direction
+                // Desktop - reverse the direction for correct visual
                 steerAngle = -turnDirection * 0.4;
             }
             if (wheelPivots && wheelPivots.frontLeft) wheelPivots.frontLeft.rotation.z = steerAngle;

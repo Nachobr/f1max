@@ -1,4 +1,4 @@
-// GyroControls.js - Extract steering without camera control
+// GyroControls.js - Use gamma tilt for both portrait and landscape
 export class GyroControls {
     constructor() {
         this.enabled = false;
@@ -9,27 +9,48 @@ export class GyroControls {
         this.hasGyro = false;
         this.requiresHTTPS = false;
         this.testEventReceived = false;
+        this.calibrationRequested = false;
+        this.tiltMode = 'gamma';
+
 
         // Store the bound handler for proper cleanup
         this.boundHandler = this.handleOrientation.bind(this);
+
+        // Check screen orientation
+        this.checkOrientation();
+        window.addEventListener('resize', () => this.checkOrientation());
+        screen.orientation?.addEventListener('change', () => this.checkOrientation());
 
         this.checkGyroSupport();
         console.log('🎮 GyroControls initialized', {
             hasGyro: this.hasGyro,
             requiresHTTPS: this.requiresHTTPS,
-            protocol: window.location.protocol
+            protocol: window.location.protocol,
+            orientation: this.isLandscape ? 'landscape' : 'portrait'
         });
     }
 
-    // ADD THIS METHOD
+    checkOrientation() {
+        const wasLandscape = this.isLandscape;
+        this.isLandscape = window.innerWidth > window.innerHeight;
+
+        console.log('🎮 Screen orientation:', this.isLandscape ? 'landscape' : 'portrait');
+
+        // Don't auto-calibrate - let user manually calibrate when they want
+        if (wasLandscape !== this.isLandscape && this.enabled) {
+            console.log('🎮 Orientation changed - please recalibrate if needed');
+            this.showNotification('Orientation changed - recalibrate if needed');
+        }
+    }
+
     checkGyroSupport() {
         this.hasGyro = 'DeviceOrientationEvent' in window;
-        
+
         // Check if we need HTTPS (most browsers require it for gyro)
-        this.requiresHTTPS = window.location.protocol !== 'https:' && 
-                            !window.location.hostname.includes('localhost') &&
-                            !window.location.hostname.includes('127.0.0.1');
-        
+        this.requiresHTTPS = window.location.protocol !== 'https:' &&
+            !window.location.hostname.includes('localhost') &&
+            !window.location.hostname.includes('127.0.0.1');
+
         // Test if we can actually get gyro data
         if (this.hasGyro) {
             const testHandler = (event) => {
@@ -37,44 +58,16 @@ export class GyroControls {
                 window.removeEventListener('deviceorientation', testHandler);
             };
             window.addEventListener('deviceorientation', testHandler, { once: true });
-            
+
             setTimeout(() => {
                 window.removeEventListener('deviceorientation', testHandler);
             }, 1000);
         }
     }
 
-    handleOrientation(event) {
-        if (!this.enabled) return;
 
-        // Use gamma (left-right tilt) for steering
-        // gamma: left-to-right tilt in degrees, where right is positive
-        let tilt = event.gamma || 0;
-
-        // Apply calibration and sensitivity
-        let calibratedTilt = (tilt - this.calibrationOffset) * this.sensitivity;
-
-        // Convert to steering value (-1 to 1)
-        this.steeringValue = Math.max(-1, Math.min(1, calibratedTilt / this.maxSteeringAngle));
-
-        // Dead zone to prevent tiny movements
-        if (Math.abs(this.steeringValue) < 0.1) {
-            this.steeringValue = 0;
-        }
-
-        console.log('🎮 Tilt:', tilt, 'Steering:', this.steeringValue);
-        
-        // Optional: Show debug info in HUD (remove in production)
-        const hudElement = document.getElementById('hud-speed');
-        if (hudElement && this.enabled) {
-            hudElement.textContent = `Gyro: ${this.steeringValue.toFixed(2)} | Tilt: ${tilt.toFixed(1)}°`;
-        }
-    }
 
     async enable() {
-
-        //alert('Gyro enable called\nProtocol: ' + window.location.protocol);
-        
         if (!this.isMobileDevice()) {
             console.warn('📱 Gyro controls only available on mobile devices');
             this.showNotification('Gyro only works on mobile devices');
@@ -87,7 +80,6 @@ export class GyroControls {
             return false;
         }
 
-        // ADD THIS HTTPS CHECK
         if (this.requiresHTTPS) {
             console.warn('📱 Gyro requires HTTPS or localhost');
             this.showNotification('Gyro requires HTTPS. Use a local server or HTTPS.');
@@ -113,10 +105,10 @@ export class GyroControls {
             }
 
             this.enabled = true;
-            this.calibrate();
+            // Don't auto-calibrate - let user decide when to calibrate
             window.addEventListener('deviceorientation', this.boundHandler);
             console.log('🎮 Gyro controls enabled successfully');
-            this.showNotification('Tilt Steering Enabled - Tilt device to steer');
+            this.showNotification('Tilt Steering Enabled - Tilt device left/right to steer');
             return true;
 
         } catch (error) {
@@ -139,12 +131,74 @@ export class GyroControls {
     }
 
     calibrate() {
-        // Simple calibration - reset to current position
-        // In a real app, you'd capture the current tilt when called
-        this.calibrationOffset = 0;
-        console.log('🎮 Gyro controls calibrated');
-        this.showNotification('Gyro Calibrated');
+        if (!this.enabled) return;
+
+        // Simple one-click calibration - set current gamma as neutral
+        // The next orientation event will capture the current position
+        this.calibrationRequested = true;
+        console.log('🎮 Calibration requested - next tilt position will be set as neutral');
+        this.showNotification('Calibrating... Tilt to desired neutral position');
     }
+
+    handleOrientation(event) {
+        if (!this.enabled) return;
+
+        // Store the latest event for calibration if needed
+        window.gyroEvent = event;
+
+        // CHOOSE TILT AXIS BASED ON MODE
+        let tilt = 0;
+        if (this.tiltMode === 'beta') {
+            // Use beta (front-back tilt) - good for landscape racing wheel style
+            tilt = event.beta || 0;
+            // Adjust for natural holding position in landscape
+            if (this.isLandscape) {
+                tilt = (tilt - 45); // Center around 45 degrees (natural landscape hold)
+            }
+        } else {
+            // Use gamma (left-right tilt) - good for portrait steering wheel style
+            tilt = event.gamma || 0;
+        }
+
+        // If calibration was requested, set current position as neutral
+        if (this.calibrationRequested) {
+            this.calibrationOffset = tilt;
+            this.calibrationRequested = false;
+            console.log('🎮 Neutral position set to:', this.calibrationOffset.toFixed(1));
+            this.showNotification('Neutral position set!');
+        }
+
+        // Apply calibration and sensitivity
+        let calibratedTilt = (tilt - this.calibrationOffset) * this.sensitivity;
+
+        // Convert to steering value (-1 to 1)
+        this.steeringValue = Math.max(-1, Math.min(1, calibratedTilt / this.maxSteeringAngle));
+
+        // Dead zone to prevent tiny movements
+        if (Math.abs(this.steeringValue) < 0.1) {
+            this.steeringValue = 0;
+        }
+
+        console.log('🎮 Gyro - Gamma:', event.gamma?.toFixed(1),
+            'Calibrated Tilt:', calibratedTilt.toFixed(1),
+            'Steering:', this.steeringValue.toFixed(3),
+            'Mode:', this.isLandscape ? 'landscape' : 'portrait');
+    }
+    toggleTiltMode() {
+        if (this.tiltMode === 'gamma') {
+            this.tiltMode = 'beta';
+            this.showNotification('Tilt Mode: Front-Back (Racing Wheel)');
+        } else {
+            this.tiltMode = 'gamma';
+            this.showNotification('Tilt Mode: Left-Right (Steering Wheel)');
+        }
+
+        // Reset calibration when switching modes
+        this.calibrationOffset = 0;
+        console.log('🎮 Tilt mode changed to:', this.tiltMode);
+    }
+
+
 
     setSensitivity(sensitivity) {
         this.sensitivity = Math.max(0.1, Math.min(3.0, sensitivity));
@@ -156,13 +210,10 @@ export class GyroControls {
             navigator.maxTouchPoints > 0;
     }
 
-    // ADD THIS HELPER METHOD
     showNotification(message) {
-        // Use the existing notification system from main.js
         if (window.showControlNotification) {
             window.showControlNotification(message);
         } else {
-            // Fallback notification
             console.log('📢 ' + message);
         }
     }

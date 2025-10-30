@@ -208,6 +208,20 @@
             right: 130px;
         }
     </style>
+    <script>
+        // Optional: Lock to landscape orientation
+        function lockOrientation() {
+            if (screen.orientation && screen.orientation.lock) {
+                screen.orientation.lock('landscape').catch(function (error) {
+                    console.log('Orientation lock failed: ', error);
+                });
+            }
+        }
+
+        // Try to lock orientation on user interaction
+        document.addEventListener('click', lockOrientation);
+        document.addEventListener('touchstart', lockOrientation);
+    </script>
 </head>
 
 <body>
@@ -232,6 +246,9 @@
 
                     <span style="font-size: 16px;">Tilt Steering</span>
                 </label>
+                <div style="font-size: 12px; color: #888; margin-bottom: 10px;">
+                    Mode: <span id="gyro-orientation-indicator">Landscape</span>
+                </div>
 
                 <div style="margin-bottom: 15px;">
                     <div style="margin-bottom: 5px; font-size: 14px;">Sensitivity: <span
@@ -244,6 +261,14 @@
                     style="padding: 8px 12px; border-radius: 5px; background: #444; color: white; border: none; font-size: 14px; width: 100%;">
                     Calibrate Gyro
                 </button>
+                <button id="mobile-tilt-mode"
+                    style="padding: 8px 12px; border-radius: 5px; background: #555; color: white; border: none; font-size: 14px; width: 100%; margin-top: 10px;">
+                    Tilt Mode: Left-Right
+                </button>
+
+                <div style="font-size: 11px; color: #666; margin-top: 10px;">
+                    Hold device in <span id="gyro-hold-position">landscape</span> position
+                </div>
             </div>
 
             <!-- Game Controls -->
@@ -426,6 +451,19 @@
         function toggleMobileMenu() {
             const menuPanel = document.getElementById('mobile-menu-panel');
             const overlay = document.querySelector('.mobile-menu-overlay');
+            function updateGyroOrientationUI() {
+                const indicator = document.getElementById('gyro-orientation-indicator');
+                const holdPosition = document.getElementById('gyro-hold-position');
+
+                if (indicator && holdPosition) {
+                    const isLandscape = window.innerWidth > window.innerHeight;
+                    indicator.textContent = isLandscape ? 'Landscape' : 'Portrait';
+                    holdPosition.textContent = isLandscape ? 'landscape' : 'portrait';
+                }
+            }
+
+            // Call this on resize and menu open
+            window.addEventListener('resize', updateGyroOrientationUI);
 
             if (!isMobileMenuOpen) {
                 menuPanel.style.right = '0';
@@ -504,9 +542,9 @@
                 }
             }
 
-            
 
-           
+
+
         });
 
     </script>
