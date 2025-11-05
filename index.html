@@ -405,9 +405,38 @@
         }
 
         // Global audio mute function
+        // Global audio mute function - IMPROVED VERSION
         function muteAudio() {
-            if (window.audioManager) {
-                window.audioManager.toggleMute();
+            console.log('🔊 Mute button clicked - Checking audio manager availability...');
+
+            // Debug: log all available audio managers
+            console.log('🔊 Available audio managers:', {
+                windowAudioManager: window.audioManager,
+                gameInitializerAudioManager: window.gameInitializer?.audioManager,
+                gameStateManagerAudioManager: window.gameStateManager?.audioManager
+            });
+
+            // Try multiple ways to access audio manager
+            if (window.audioManager && typeof window.audioManager.toggleMute === 'function') {
+                console.log('🔊 Using window.audioManager');
+                const isMuted = window.audioManager.toggleMute();
+                console.log(`🔊 Audio ${isMuted ? 'muted' : 'unmuted'} successfully`);
+                return isMuted;
+            } else if (window.gameInitializer && window.gameInitializer.audioManager && typeof window.gameInitializer.audioManager.toggleMute === 'function') {
+                console.log('🔊 Using gameInitializer.audioManager');
+                const isMuted = window.gameInitializer.audioManager.toggleMute();
+                console.log(`🔊 Audio ${isMuted ? 'muted' : 'unmuted'} successfully`);
+                return isMuted;
+            } else if (window.gameStateManager && window.gameStateManager.audioManager && typeof window.gameStateManager.audioManager.toggleMute === 'function') {
+                console.log('🔊 Using gameStateManager.audioManager');
+                const isMuted = window.gameStateManager.audioManager.toggleMute();
+                console.log(`🔊 Audio ${isMuted ? 'muted' : 'unmuted'} successfully`);
+                return isMuted;
+            } else {
+                console.warn('🔊 No audio manager available or toggleMute method not found');
+                console.warn('🔊 Available methods on window.audioManager:', Object.keys(window.audioManager || {}));
+                alert('Audio system not ready. Please make sure the game is running and try again.');
+                return false;
             }
         }
 
@@ -504,7 +533,7 @@
             }
         });
 
-        
+
     </script>
 
     <!-- MOBILE MENU FUNCTIONALITY -->
@@ -515,7 +544,7 @@
         function toggleMobileMenu() {
             const menuPanel = document.getElementById('mobile-menu-panel');
             const overlay = document.querySelector('.mobile-menu-overlay');
-            
+
             function updateGyroOrientationUI() {
                 const indicator = document.getElementById('gyro-orientation-indicator');
                 const holdPosition = document.getElementById('gyro-hold-position');

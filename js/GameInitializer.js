@@ -24,7 +24,8 @@ export class GameInitializer {
         this.memoryMonitor = null;
         this.textureManager = null;
         this.cameraManager = null;
-        
+        window.gameInitializer = this;
+
     }
 
     async initGame(trackName = 'Monza Standard', isMultiplayer = false) {
@@ -91,6 +92,7 @@ export class GameInitializer {
         //console.log('🔊 Initializing audio manager...');
         this.audioManager = new AudioManager(camera, this.player);
         await this.audioManager.init();
+
 
         // Initialize network if multiplayer
         if (gameState.isMultiplayer) {
@@ -226,6 +228,11 @@ export class GameInitializer {
 
 // Menu navigation functions
 export function setupMenuNavigation(gameInitializer) {
+    document.getElementById('mute-button').addEventListener('click', function () {
+        console.log('🔊 Pause menu mute button clicked');
+        muteAudio();
+    });
+
     document.getElementById('multiplayer-button').addEventListener('click', function () {
         document.getElementById('main-menu').style.display = 'none';
         document.getElementById('networkMenu').style.display = 'block';
