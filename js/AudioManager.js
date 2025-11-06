@@ -64,7 +64,7 @@ export class AudioManager {
         this.sounds.finish.setVolume(1.0);
 
         gameState.audioInitialized = true;
-        console.log("🔊 Audio system initialized.");
+        //console.log("🔊 Audio system initialized.");
     }
 
     startEngine() {
@@ -120,7 +120,7 @@ export class AudioManager {
             muteButton.textContent = this.isMuted ? 'Unmute Audio' : 'Mute Audio';
         }
         
-        console.log(`🔊 Audio ${this.isMuted ? 'muted' : 'unmuted'}`);
+       // console.log(`🔊 Audio ${this.isMuted ? 'muted' : 'unmuted'}`);
         return this.isMuted;
     }
 

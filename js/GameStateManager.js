@@ -8,6 +8,9 @@ let audioManager;
 let networkManager;
 let renderer;
 
+// NEW: Track kerb state for audio feedback
+let wasOnKerb = false;
+
 export function initGameManager(ui, audio, network) {
     uiManager = ui;
     audioManager = audio;
@@ -19,8 +22,18 @@ export function setRenderer(ref) {
 }
 
 export function togglePause() {
+    
     gameState.isPaused = !gameState.isPaused;
-    uiManager.togglePauseMenu();
+    
+
+    if (uiManager) {
+        uiManager.togglePauseMenu();
+    } else {
+        console.warn('❌ UIManager not available in GameStateManager');
+    }
+
+    // Make sure the function is globally available
+    window.gameStateManager = { togglePause };
 }
 
 export function handleLapFinish() {
@@ -44,18 +57,25 @@ export function handleLapFinish() {
     return false;
 }
 
-export function loadTrackAndRestart(trackName, scene, camera, player) {
-    //console.log(`🔄 Loading track ${trackName} - Current geometries: ${renderer ? renderer.info.memory.geometries : 'N/A'}`);
+// NEW: Handle kerb audio feedback
+export function updateKerbFeedback(isOnKerb) {
+    if (isOnKerb && !wasOnKerb) {
+        // Just hit kerb - play sound
+        if (audioManager) {
+            audioManager.playKerbSound();
+        }
+    }
+    wasOnKerb = isOnKerb;
+}
 
+export function loadTrackAndRestart(trackName, scene, camera, player) {
     // Clear existing track
     if (trackData.sceneMeshes?.length > 0) {
-        //console.log(`🧹 Clearing ${trackData.sceneMeshes.length} track meshes`);
         clearTrack(scene);
     }
 
     // Cleanup remote players
     if (gameState.remotePlayers && gameState.remotePlayers.size > 0) {
-        //console.log(`🧹 Clearing ${gameState.remotePlayers.size} remote players`);
         gameState.remotePlayers.forEach(({ mesh }) => {
             if (mesh && scene) scene.remove(mesh);
             if (mesh && mesh.geometry) mesh.geometry.dispose();
@@ -84,11 +104,12 @@ export function loadTrackAndRestart(trackName, scene, camera, player) {
     carState.velocityAngle = rotationAngle;
     carState.speed = 0;
     carState.currentT = 0;
+    carState.isOnKerb = false; // NEW: Reset kerb state
+    carState.kerbEffectTimer = 0; // NEW
 
     if (player) {
         player.position.copy(carState.position);
         player.rotation.y = carState.rotationAngle;
-        //console.log(`🚗 Player positioned at:`, carState.position);
     }
 
     // Reset game state
@@ -100,14 +121,16 @@ export function loadTrackAndRestart(trackName, scene, camera, player) {
     gameState.lapStartTime = performance.now();
     gameState.isPaused = false;
 
+    // NEW: Reset kerb feedback state
+    wasOnKerb = false;
+
     if (uiManager) {
         uiManager.togglePauseMenu();
         uiManager.hideNetworkMenu();
     }
 
-    // FIXED: Better camera positioning
+    // Camera positioning
     if (camera && startPosition) {
-        // Position camera behind and above the car
         const carForwardAngle = rotationAngle;
         const cameraDistance = 15;
         const cameraHeight = 8;
@@ -117,17 +140,12 @@ export function loadTrackAndRestart(trackName, scene, camera, player) {
 
         camera.position.set(cameraX, cameraHeight, cameraZ);
         camera.lookAt(startPosition.x, startPosition.y + 2, startPosition.z);
-
-        //console.log(`📷 Camera positioned at:`, camera.position, `looking at:`, startPosition);
     }
 
     if (audioManager) {
         audioManager.stopAll();
         audioManager.startEngine();
     }
-
-    //console.log(`✅ Track loaded - New geometries: ${renderer ? renderer.info.memory.geometries : 'N/A'}`);
-    //console.log(`📊 Track meshes: ${trackData.sceneMeshes ? trackData.sceneMeshes.length : 0}`);
 }
 
 export function checkLapCompletion(position, speed) {

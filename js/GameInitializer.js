@@ -229,7 +229,7 @@ export class GameInitializer {
 // Menu navigation functions
 export function setupMenuNavigation(gameInitializer) {
     document.getElementById('mute-button').addEventListener('click', function () {
-        console.log('🔊 Pause menu mute button clicked');
+        //console.log('🔊 Pause menu mute button clicked');
         muteAudio();
     });
 

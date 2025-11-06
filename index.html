@@ -397,44 +397,29 @@
             }
         }
 
-        // Global pause function
-        function togglePause() {
-            if (window.togglePauseGame) {
-                window.togglePauseGame();
-            }
-        }
 
-        // Global audio mute function
         // Global audio mute function - IMPROVED VERSION
         function muteAudio() {
-            console.log('🔊 Mute button clicked - Checking audio manager availability...');
 
-            // Debug: log all available audio managers
-            console.log('🔊 Available audio managers:', {
-                windowAudioManager: window.audioManager,
-                gameInitializerAudioManager: window.gameInitializer?.audioManager,
-                gameStateManagerAudioManager: window.gameStateManager?.audioManager
-            });
 
             // Try multiple ways to access audio manager
             if (window.audioManager && typeof window.audioManager.toggleMute === 'function') {
-                console.log('🔊 Using window.audioManager');
+
                 const isMuted = window.audioManager.toggleMute();
-                console.log(`🔊 Audio ${isMuted ? 'muted' : 'unmuted'} successfully`);
+
                 return isMuted;
             } else if (window.gameInitializer && window.gameInitializer.audioManager && typeof window.gameInitializer.audioManager.toggleMute === 'function') {
-                console.log('🔊 Using gameInitializer.audioManager');
+
                 const isMuted = window.gameInitializer.audioManager.toggleMute();
-                console.log(`🔊 Audio ${isMuted ? 'muted' : 'unmuted'} successfully`);
+
                 return isMuted;
             } else if (window.gameStateManager && window.gameStateManager.audioManager && typeof window.gameStateManager.audioManager.toggleMute === 'function') {
-                console.log('🔊 Using gameStateManager.audioManager');
+
                 const isMuted = window.gameStateManager.audioManager.toggleMute();
-                console.log(`🔊 Audio ${isMuted ? 'muted' : 'unmuted'} successfully`);
+
                 return isMuted;
             } else {
-                console.warn('🔊 No audio manager available or toggleMute method not found');
-                console.warn('🔊 Available methods on window.audioManager:', Object.keys(window.audioManager || {}));
+
                 alert('Audio system not ready. Please make sure the game is running and try again.');
                 return false;
             }
@@ -449,12 +434,26 @@
             document.getElementById('main-menu').style.display = 'block';
         }
 
+        function togglePause() {
+            console.log('⏸️ Global pause function called');
+            if (window.gameStateManager && window.gameStateManager.togglePause) {
+                console.log('⏸️ Using window.gameStateManager.togglePause');
+                window.gameStateManager.togglePause();
+            } else if (window.togglePauseGame) {
+                console.log('⏸️ Using window.togglePauseGame');
+                window.togglePauseGame();
+            } else {
+                console.warn('❌ No pause function available');
+            }
+        }
+
         // Make functions available globally
         window.toggleCamera = toggleCamera;
         window.updateCameraHUDText = updateCameraHUDText;
         window.togglePause = togglePause;
         window.muteAudio = muteAudio;
         window.backToMainMenu = backToMainMenu;
+        window.addEventListener('DOMContentLoaded', function () {});
     </script>
 
     <script type="module">
@@ -514,19 +513,6 @@
             populateTrackSelect('trackSelect-network');
             populateTrackSelect('trackSelect-single');
 
-            // Add event listeners for starting the game
-            document.getElementById('start-singleplayer-button').addEventListener('click', function () {
-                const trackSelect = document.getElementById('trackSelect-single');
-                const selectedTrack = trackSelect.value;
-
-                if (selectedTrack) {
-                    gameInitializer.initGame(selectedTrack, false);
-                    document.getElementById('track-select-menu').style.display = 'none';
-                } else {
-                    alert('Please select a track first!');
-                }
-            });
-
             // Initialize touch controls if on a touch device
             if ('ontouchstart' in window) {
                 document.getElementById('touch-controls').style.display = 'block';
@@ -538,6 +524,45 @@
 
     <!-- MOBILE MENU FUNCTIONALITY -->
     <script>
+        function debugEventListeners() {
+            console.log('🔍 DEBUG: Checking for duplicate event listeners...');
+
+            // Track all buttons that might cause initGame to be called
+            const criticalButtons = [
+                'start-singleplayer-button',
+                'multiplayer-button',
+                'singleplayer-button',
+                'create-room-button',
+                'join-room-button',
+                'start-game-button'
+            ];
+
+            criticalButtons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    const listeners = getEventListeners(button);
+                    console.log(`📝 ${buttonId} has ${Object.keys(listeners).length} event types registered`);
+                    Object.keys(listeners).forEach(eventType => {
+                        console.log(`   - ${eventType}: ${listeners[eventType].length} listeners`);
+                    });
+                } else {
+                    console.log(`❌ ${buttonId} not found`);
+                }
+            });
+        }
+
+        // Function to check if getEventListeners is available (Chrome DevTools)
+        function checkGetEventListeners() {
+            if (typeof getEventListeners === 'undefined') {
+                console.log('⚠️ getEventListeners not available. Open Chrome DevTools and run in console.');
+                return false;
+            }
+            return true;
+        }
+
+        // Make these functions globally available
+        window.debugEventListeners = debugEventListeners;
+        window.checkGetEventListeners = checkGetEventListeners;
         // Mobile menu functionality
         let isMobileMenuOpen = false;
 
