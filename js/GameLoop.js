@@ -52,7 +52,7 @@ export class GameLoop {
 
     start() {
         if (this.isRunning) return;
-        
+
         this.isRunning = true;
         this.lastPhysicsUpdateTime = performance.now();
         this.animate();
@@ -85,17 +85,31 @@ export class GameLoop {
         this.updateNetwork();
         this.render();
         renderer.render(scene, camera);
+
+        if (this.frameCounter % (60 * 5) === 0) {
+            console.log('HEAP DELTA:', {
+                heapMB: performance.memory.usedJSHeapSize / 1048576,
+                networkQueueSize: this.networkManager?.outgoingMessageQueue?.length || 0,
+                inputHistoryLen: this.inputManager?.inputHistory?.length || 0,
+                physicsSnapshots: window.physicsSnapshots?.length || 0
+            });
+        }
         this.frameCounter++;
         if (this.frameCounter >= 1000) this.frameCounter = 0;
     }
 
     updateMemoryMonitoring() {
+        const beforeGeometries = renderer.info.memory.geometries;
+
         if (this.memoryMonitor) {
             this.memoryMonitor.update();
 
-            if (this.frameCounter % 120 === 0 && this.uiManager) {
-                const memoryStatus = getMemoryStatus();
-                this.uiManager.updateMemoryStatus(memoryStatus);
+            const afterGeometries = renderer.info.memory.geometries;
+            if (afterGeometries > beforeGeometries) {
+                console.warn('MEMORY MONITOR LEAK:', {
+                    created: afterGeometries - beforeGeometries,
+                    total: afterGeometries
+                });
             }
         }
     }
@@ -112,13 +126,13 @@ export class GameLoop {
 
             const inputState = this.inputManager.getInputState();
             const gyroSteering = this.inputManager.getGyroSteering();
-            
+
             const physicsResult = updatePhysics(
-                inputState, 
-                carState, 
-                trackData.curve, 
-                trackData.divisions, 
-                roadHalfWidth, 
+                inputState,
+                carState,
+                trackData.curve,
+                trackData.divisions,
+                roadHalfWidth,
                 gyroSteering
             );
 
@@ -193,7 +207,7 @@ export class GameLoop {
         if (!gameState.isMultiplayer || !this.networkManager || !this.networkManager.isConnected) return;
 
         const currentTime = performance.now();
-        
+
         if (currentTime - this.lastNetworkUpdate > this.networkTickRate) {
             this.networkManager.sendInput(carState);
             this.lastNetworkUpdate = currentTime;
