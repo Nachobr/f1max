@@ -325,20 +325,7 @@ export function setupMenuNavigation(gameInitializer) {
 
 
     document.getElementById('back-to-main-from-pause').addEventListener('click', async () => {
-
-
-        // Hide pause menu immediately
-        document.getElementById('pauseMenu').style.display = 'none';
-
-        await gameInitializer.cleanup();
-
-        // Small delay to ensure cleanup completes
-        await new Promise(resolve => setTimeout(resolve, 100));
-
-        // Show main menu
-        document.getElementById('main-menu').style.display = 'block';
-
-
+        window.location.reload();
     });
 
     document.getElementById('start-singleplayer-button').addEventListener('click', function () {
