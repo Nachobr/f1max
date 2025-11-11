@@ -43,7 +43,7 @@ export class InputManager {
         this.setupGyroscope();
 
         this.initBound = true;
-        console.log('✅ InputManager initialized');
+        //console.log('✅ InputManager initialized');
     }
 
     handleKeyDown(event) {
@@ -160,7 +160,7 @@ export class InputManager {
 
     // ✅ FIXED: Made async and properly clears all state
     async cleanup() {
-        console.log('⌨️ InputManager async cleanup...');
+        //console.log('⌨️ InputManager async cleanup...');
         
         // Remove event listeners
         if (this.keydownHandler) {
@@ -192,6 +192,6 @@ export class InputManager {
         // Small delay to ensure event loop processes removal
         await new Promise(resolve => setTimeout(resolve, 0));
         
-        console.log('✅ InputManager cleanup complete');
+        //console.log('✅ InputManager cleanup complete');
     }
 }

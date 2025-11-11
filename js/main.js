@@ -3,7 +3,7 @@ import { togglePause } from './GameStateManager.js';
 import { GameInitializer } from './GameInitializer.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
-    // ✅ FIXED: Proper instantiation and await
+    
     window.gameInitializer = new GameInitializer();
     
     // Setup menu navigation
@@ -18,7 +18,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         if (mobileMenuToggle) mobileMenuToggle.style.display = 'block';
     }
 
-    console.log('🚀 Game initialized with modular architecture');
+    //console.log('🚀 Game initialized with modular architecture');
 });
 
 // Global exports for HTML onclick handlers
@@ -34,5 +34,5 @@ window.toggleCamera = () => {
 window.loadTrackByName = loadTrackByName;
 window.togglePause = togglePause;
 
-// ✅ FIXED: Export instance, not a function
+
 window.gameInitializerInstance = window.gameInitializer;

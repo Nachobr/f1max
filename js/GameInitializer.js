@@ -11,7 +11,7 @@ import { MemoryMonitor } from './MemoryMonitor.js';
 import { TextureManager } from './TextureManager.js';
 import { CameraManager } from './CameraManager.js';
 import { getAvailableTracks } from './Utils.js';
-import { clearTrack, trackData } from './TrackBuilder.js'; // ✅ ADDED for track disposal
+import { clearTrack, trackData } from './TrackBuilder.js';
 
 export class GameInitializer {
     constructor() {
@@ -39,16 +39,15 @@ export class GameInitializer {
         console.trace(`🎯 INIT GAME CALLED - Track: ${trackName}, Multiplayer: ${isMultiplayer}, Called from:`);
 
         const initGameCallId = Math.random().toString(36).substr(2, 9);
-        console.log(`🔢 InitGame Instance ID: ${initGameCallId}`);
+        //console.log(`🔢 InitGame Instance ID: ${initGameCallId}`);
         this.gameStarted = false;
         gameState.isMultiplayer = isMultiplayer;
 
-        // ✅ CRITICAL: Reset game state keys to prevent stale input
+
         if (gameState.keys) {
             gameState.keys = {};
         }
 
-        // ✅ Clean up existing instances properly
         if (this.inputManager) {
             await this.inputManager.cleanup();
             this.inputManager = null;
@@ -63,7 +62,7 @@ export class GameInitializer {
         this.memoryMonitor = new MemoryMonitor(renderer, scene);
         this.textureManager = new TextureManager(renderer);
 
-        // ✅ Always create fresh InputManager
+
         this.inputManager = new InputManager();
         this.uiManager = new UIManager(this.networkManager);
         this.gameLoop = new GameLoop();
@@ -75,7 +74,7 @@ export class GameInitializer {
             this.player.name = "playerCar";
             scene.add(this.player);
         } catch (error) {
-            
+
             const car = await createF1Car();
             this.player = car.model;
             gameState.playerParts = car.parts;
@@ -85,7 +84,7 @@ export class GameInitializer {
 
         // Initialize camera manager
         this.cameraManager = new CameraManager(camera, this.player);
-        window.cameraManager = this.cameraManager; // ✅ Set fresh global reference
+        window.cameraManager = this.cameraManager;
 
         // Initialize audio manager
         this.audioManager = new AudioManager(camera, this.player);
@@ -129,7 +128,7 @@ export class GameInitializer {
         this.audioManager.startEngine();
 
         this.startGameLoop();
-        //console.log(`✅ Game initialization complete for Instance ID: ${initGameCallId}`);
+
     }
 
     setupMultiplayerHandlers() {
@@ -170,82 +169,86 @@ export class GameInitializer {
         if (!this.gameStarted) {
             this.gameStarted = true;
             this.gameLoop.start();
-            //console.log('🎬 Game loop started!');
+
         }
     }
 
     async restartGame(trackName) {
-        console.log('🔄 Restart sequence started...');
+        //console.log('🔄 Restart sequence started...');
         await this.cleanup();
-        
+
         await new Promise(resolve => setTimeout(resolve, 50));
         await this.initGame(trackName, gameState.isMultiplayer);
-        //console.log('🎯 Restart sequence complete');
+
     }
 
 
     async cleanup() {
-       // console.log('🧹 Starting async cleanup...');
+        //console.log('🧹 Starting async cleanup...');
 
-        // Reset flags
         this.initGameInProgress = false;
         this.gameStarted = false;
 
-        // ✅ CRITICAL: Stop game loop IMMEDIATELY and clear reference
+        // Stop game loop
         if (this.gameLoop) {
             this.gameLoop.stop();
-            this.gameLoop = null; // Clear it so physics can't run
-            await new Promise(resolve => setTimeout(resolve, 50)); // Wait for frames to clear
+            this.gameLoop = null;
+            await new Promise(resolve => setTimeout(resolve, 50));
         }
 
-        // ✅ NOW safe to cleanup InputManager and clear data
+        // Cleanup input
         if (this.inputManager) {
             await this.inputManager.cleanup();
             this.inputManager = null;
         }
 
-        // Dispose car model
+        // Remove car
         if (this.player) {
-            console.log('🧹 Removing car from scene...');
+            //console.log('🧹 Removing car from scene...');
             scene.remove(this.player);
-
-            // Dispose car geometry and materials
             this.player.traverse((child) => {
-                if (child.geometry) {
-                    child.geometry.dispose();
-                }
+                if (child.geometry) child.geometry.dispose();
                 if (child.material) {
                     if (Array.isArray(child.material)) {
-                        child.material.forEach(material => {
-                            if (material.map) material.map.dispose();
-                            material.dispose();
-                        });
+                        child.material.forEach(material => material.dispose());
                     } else {
-                        if (child.material.map) child.material.map.dispose();
                         child.material.dispose();
                     }
                 }
             });
-
             this.player = null;
             gameState.playerParts = null;
         }
 
-
+        // Clear track
         if (trackData.sceneMeshes?.length > 0) {
-            console.log(`🧹 Clearing ${trackData.sceneMeshes.length} track meshes`);
+            //console.log(`🧹 Clearing ${trackData.sceneMeshes.length} track meshes`);
             clearTrack(scene);
-            trackData.sceneMeshes = []; // ✅ Only clear the mesh array
-            // ❌ DON'T set trackData.curve = null or trackData.divisions = null
+            trackData.sceneMeshes = [];
         }
 
-        // Clear global references
+        if (gameState.remotePlayers && gameState.remotePlayers.size > 0) {
+            //console.log(`🧹 Clearing ${gameState.remotePlayers.size} remote players`);
+            gameState.remotePlayers.forEach(({ mesh }) => {
+                if (mesh && scene) scene.remove(mesh);
+                if (mesh.geometry) mesh.geometry.dispose();
+                if (mesh.material) {
+                    if (Array.isArray(mesh.material)) {
+                        mesh.material.forEach(material => material.dispose());
+                    } else {
+                        mesh.material.dispose();
+                    }
+                }
+            });
+            gameState.remotePlayers.clear();
+        }
+
+        // Clear references
         window.cameraManager = null;
         window.audioManager = null;
         window.memoryMonitor = null;
         window.gyroControls = null;
 
-        // Clear local references
         this.audioManager = null;
         this.networkManager = null;
         this.uiManager = null;
@@ -253,12 +256,23 @@ export class GameInitializer {
         this.textureManager = null;
         this.cameraManager = null;
 
-        // Force renderer cleanup
+        // Force render
         if (renderer) {
             renderer.renderLists.dispose();
+            renderer.render(scene, camera);
         }
-
-        console.log('✅ Cleanup complete - Track data structure preserved');
+        console.log('═══════════════════════════════════════════════');
+        console.log('✅ CLEANUP COMPLETE');
+        console.log('📋 Scene objects AFTER:', scene.children.map(c => c.name || c.type).filter(n => n));
+        console.log('📊 Memory AFTER - Geometries:', renderer.info.memory.geometries, 'Textures:', renderer.info.memory.textures);
+        console.log('🗑️  Disposed:', {
+            Car: this.player ? 'Yes' : 'No',
+            Track: trackData.sceneMeshes?.length || '0 meshes',
+            RemotePlayers: gameState.remotePlayers?.size || '0',
+            InputManager: this.inputManager ? 'No' : 'Yes',
+            NetworkManager: this.networkManager ? 'No' : 'Yes'
+        });
+        console.log('═══════════════════════════════════════════════');
     }
 }
 
@@ -311,18 +325,31 @@ export function setupMenuNavigation(gameInitializer) {
 
 
     document.getElementById('back-to-main-from-pause').addEventListener('click', async () => {
-        console.log('📋 Back to Main clicked - starting cleanup...');
-        await gameInitializer.cleanup();
-        // Small delay to ensure event loop clears
-        await new Promise(resolve => setTimeout(resolve, 50));
+
+
+        // Hide pause menu immediately
         document.getElementById('pauseMenu').style.display = 'none';
+
+        await gameInitializer.cleanup();
+
+        // Small delay to ensure cleanup completes
+        await new Promise(resolve => setTimeout(resolve, 100));
+
+        // Show main menu
         document.getElementById('main-menu').style.display = 'block';
-        console.log('📋 Menu switch complete');
+
+
     });
 
     document.getElementById('start-singleplayer-button').addEventListener('click', function () {
         const trackSelect = document.getElementById('trackSelect-single');
         const selectedTrack = trackSelect.value;
+        console.log('');
+        console.log('═══════════════════════════════════════════════');
+        console.log('🚀 INITIALIZING GAME...');
+        console.log('📋 Scene objects BEFORE:', scene.children.map(c => c.name || c.type).filter(n => n));
+        console.log('📊 Memory BEFORE - Geometries:', renderer.info.memory.geometries, 'Textures:', renderer.info.memory.textures);
+        console.log('═══════════════════════════════════════════════');
         if (selectedTrack) {
             gameInitializer.initGame(selectedTrack, false);
             document.getElementById('track-select-menu').style.display = 'none';

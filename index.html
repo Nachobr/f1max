@@ -435,12 +435,12 @@
         }
 
         function togglePause() {
-            console.log('⏸️ Global pause function called');
+            //console.log('⏸️ Global pause function called');
             if (window.gameStateManager && window.gameStateManager.togglePause) {
-                console.log('⏸️ Using window.gameStateManager.togglePause');
+                //console.log('⏸️ Using window.gameStateManager.togglePause');
                 window.gameStateManager.togglePause();
             } else if (window.togglePauseGame) {
-                console.log('⏸️ Using window.togglePauseGame');
+                //console.log('⏸️ Using window.togglePauseGame');
                 window.togglePauseGame();
             } else {
                 console.warn('❌ No pause function available');
@@ -525,7 +525,7 @@
     <!-- MOBILE MENU FUNCTIONALITY -->
     <script>
         function debugEventListeners() {
-            console.log('🔍 DEBUG: Checking for duplicate event listeners...');
+            //console.log('🔍 DEBUG: Checking for duplicate event listeners...');
 
             // Track all buttons that might cause initGame to be called
             const criticalButtons = [
@@ -541,12 +541,12 @@
                 const button = document.getElementById(buttonId);
                 if (button) {
                     const listeners = getEventListeners(button);
-                    console.log(`📝 ${buttonId} has ${Object.keys(listeners).length} event types registered`);
+                    //console.log(`📝 ${buttonId} has ${Object.keys(listeners).length} event types registered`);
                     Object.keys(listeners).forEach(eventType => {
-                        console.log(`   - ${eventType}: ${listeners[eventType].length} listeners`);
+                        //console.log(`   - ${eventType}: ${listeners[eventType].length} listeners`);
                     });
                 } else {
-                    console.log(`❌ ${buttonId} not found`);
+                    //console.log(`❌ ${buttonId} not found`);
                 }
             });
         }
@@ -554,7 +554,7 @@
         // Function to check if getEventListeners is available (Chrome DevTools)
         function checkGetEventListeners() {
             if (typeof getEventListeners === 'undefined') {
-                console.log('⚠️ getEventListeners not available. Open Chrome DevTools and run in console.');
+                //console.log('⚠️ getEventListeners not available. Open Chrome DevTools and run in console.');
                 return false;
             }
             return true;
