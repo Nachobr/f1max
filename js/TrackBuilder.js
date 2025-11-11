@@ -130,23 +130,30 @@ function initializeMaterials() {
 
 // --- IMPROVED CLEAR TRACK FUNCTION ---
 export function clearTrack(scene) {
+    if (!scene || !trackData?.sceneMeshes) return;
+
+    console.log(`🧹 Clearing ${trackData.sceneMeshes.length} track meshes`);
+
     trackData.sceneMeshes.forEach(mesh => {
-        if (scene) scene.remove(mesh);
-
-        if (mesh.geometry && !isSharedGeometry(mesh.geometry)) {
-            mesh.geometry.dispose();
-        }
-
-        if (mesh.material && !isSharedMaterial(mesh.material)) {
-            if (Array.isArray(mesh.material)) {
-                mesh.material.forEach(material => material.dispose());
-            } else {
-                mesh.material.dispose();
+        if (mesh && scene) {
+            scene.remove(mesh);
+            if (mesh.geometry) mesh.geometry.dispose();
+            if (mesh.material) {
+                if (Array.isArray(mesh.material)) {
+                    mesh.material.forEach(material => {
+                        if (material.map) material.map.dispose();
+                        material.dispose();
+                    });
+                } else {
+                    if (mesh.material.map) mesh.material.map.dispose();
+                    mesh.material.dispose();
+                }
             }
         }
     });
 
     trackData.sceneMeshes = [];
+    // ❌ DON'T set trackData.curve = null or trackData.divisions = null here
 }
 
 // Helper functions to check if geometry/material is shared

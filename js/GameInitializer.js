@@ -11,10 +11,12 @@ import { MemoryMonitor } from './MemoryMonitor.js';
 import { TextureManager } from './TextureManager.js';
 import { CameraManager } from './CameraManager.js';
 import { getAvailableTracks } from './Utils.js';
+import { clearTrack, trackData } from './TrackBuilder.js'; // ✅ ADDED for track disposal
 
 export class GameInitializer {
     constructor() {
         this.gameStarted = false;
+        this.initGameInProgress = false;
         this.player = null;
         this.audioManager = null;
         this.networkManager = null;
@@ -25,7 +27,6 @@ export class GameInitializer {
         this.textureManager = null;
         this.cameraManager = null;
         window.gameInitializer = this;
-
     }
 
     async initGame(trackName = 'Monza Standard', isMultiplayer = false) {
@@ -37,13 +38,19 @@ export class GameInitializer {
         this.initGameInProgress = true;
         console.trace(`🎯 INIT GAME CALLED - Track: ${trackName}, Multiplayer: ${isMultiplayer}, Called from:`);
 
-        this.initGameCallId = Math.random().toString(36).substr(2, 9);
-        console.log(`🔢 InitGame Instance ID: ${this.initGameCallId}`);
+        const initGameCallId = Math.random().toString(36).substr(2, 9);
+        console.log(`🔢 InitGame Instance ID: ${initGameCallId}`);
         this.gameStarted = false;
         gameState.isMultiplayer = isMultiplayer;
 
+        // ✅ CRITICAL: Reset game state keys to prevent stale input
+        if (gameState.keys) {
+            gameState.keys = {};
+        }
+
+        // ✅ Clean up existing instances properly
         if (this.inputManager) {
-            this.inputManager.cleanup();
+            await this.inputManager.cleanup();
             this.inputManager = null;
         }
 
@@ -52,30 +59,23 @@ export class GameInitializer {
             this.gameLoop = null;
         }
 
-
-
         // Initialize core systems
         this.memoryMonitor = new MemoryMonitor(renderer, scene);
         this.textureManager = new TextureManager(renderer);
-        // Reuse InputManager if it exists, otherwise create a new one
-        if (!this.inputManager) {
-            this.inputManager = new InputManager();
-        }
-        this.uiManager = new UIManager(this.networkManager);
 
+        // ✅ Always create fresh InputManager
+        this.inputManager = new InputManager();
+        this.uiManager = new UIManager(this.networkManager);
         this.gameLoop = new GameLoop();
 
         try {
-            // Create player car
-            //console.log('🚗 Creating player car...');
             const car = await createF1Car();
             this.player = car.model;
             gameState.playerParts = car.parts;
             this.player.name = "playerCar";
             scene.add(this.player);
-            //console.log('✅ Player car created and added to scene');
         } catch (error) {
-            //console.warn('Error creating car, using default:', error);
+            
             const car = await createF1Car();
             this.player = car.model;
             gameState.playerParts = car.parts;
@@ -84,39 +84,29 @@ export class GameInitializer {
         }
 
         // Initialize camera manager
-        //console.log('📷 Initializing camera manager...');
         this.cameraManager = new CameraManager(camera, this.player);
-        window.cameraManager = this.cameraManager;
+        window.cameraManager = this.cameraManager; // ✅ Set fresh global reference
 
         // Initialize audio manager
-        //console.log('🔊 Initializing audio manager...');
         this.audioManager = new AudioManager(camera, this.player);
         await this.audioManager.init();
 
-
         // Initialize network if multiplayer
         if (gameState.isMultiplayer) {
-            //console.log('🌐 Initializing network manager...');
             this.networkManager = new NetworkManager();
             await this.networkManager.connect();
             gameState.networkManager = this.networkManager;
-            // Update UI manager with network manager
             this.uiManager.setNetworkManager(this.networkManager);
         }
 
-
-
         // Initialize input system
-        //console.log('🎮 Initializing input manager...');
         this.inputManager.init(this.uiManager, this.audioManager, this.cameraManager);
 
         // Setup game state manager
-        //console.log('📊 Setting up game manager...');
         initGameManager(this.uiManager, this.audioManager, this.networkManager);
         setRenderer(renderer);
 
         // Setup game loop
-        //console.log('🔄 Setting up game loop...');
         this.gameLoop.init({
             player: this.player,
             inputManager: this.inputManager,
@@ -133,15 +123,13 @@ export class GameInitializer {
         }
 
         // Load track and start game
-        //console.log('🏁 Loading track and starting game...');
         loadTrackAndRestart(trackName, scene, camera, this.player);
 
         // Start audio engine
-        //console.log('🔊 Starting audio engine...');
         this.audioManager.startEngine();
 
         this.startGameLoop();
-        //console.log('✅ Game initialization complete!');
+        //console.log(`✅ Game initialization complete for Instance ID: ${initGameCallId}`);
     }
 
     setupMultiplayerHandlers() {
@@ -187,49 +175,96 @@ export class GameInitializer {
     }
 
     async restartGame(trackName) {
+        console.log('🔄 Restart sequence started...');
         await this.cleanup();
+        
+        await new Promise(resolve => setTimeout(resolve, 50));
         await this.initGame(trackName, gameState.isMultiplayer);
+        //console.log('🎯 Restart sequence complete');
     }
 
+
     async cleanup() {
-        console.log('🧹 InputManager cleaning up - removing listeners');
+       // console.log('🧹 Starting async cleanup...');
+
+        // Reset flags
+        this.initGameInProgress = false;
         this.gameStarted = false;
 
+        // ✅ CRITICAL: Stop game loop IMMEDIATELY and clear reference
         if (this.gameLoop) {
             this.gameLoop.stop();
+            this.gameLoop = null; // Clear it so physics can't run
+            await new Promise(resolve => setTimeout(resolve, 50)); // Wait for frames to clear
         }
 
-
-
+        // ✅ NOW safe to cleanup InputManager and clear data
         if (this.inputManager) {
-            this.inputManager.cleanup();
+            await this.inputManager.cleanup();
+            this.inputManager = null;
         }
 
-        // Clean up global references
+        // Dispose car model
+        if (this.player) {
+            console.log('🧹 Removing car from scene...');
+            scene.remove(this.player);
+
+            // Dispose car geometry and materials
+            this.player.traverse((child) => {
+                if (child.geometry) {
+                    child.geometry.dispose();
+                }
+                if (child.material) {
+                    if (Array.isArray(child.material)) {
+                        child.material.forEach(material => {
+                            if (material.map) material.map.dispose();
+                            material.dispose();
+                        });
+                    } else {
+                        if (child.material.map) child.material.map.dispose();
+                        child.material.dispose();
+                    }
+                }
+            });
+
+            this.player = null;
+            gameState.playerParts = null;
+        }
+
+
+        if (trackData.sceneMeshes?.length > 0) {
+            console.log(`🧹 Clearing ${trackData.sceneMeshes.length} track meshes`);
+            clearTrack(scene);
+            trackData.sceneMeshes = []; // ✅ Only clear the mesh array
+            // ❌ DON'T set trackData.curve = null or trackData.divisions = null
+        }
+
+        // Clear global references
         window.cameraManager = null;
         window.audioManager = null;
         window.memoryMonitor = null;
         window.gyroControls = null;
 
-        this.player = null;
+        // Clear local references
         this.audioManager = null;
         this.networkManager = null;
         this.uiManager = null;
-        this.inputManager = null;
-        this.gameLoop = null;
-        this.gameStateManager = null;
         this.memoryMonitor = null;
         this.textureManager = null;
         this.cameraManager = null;
 
-        //console.log('✅ Game cleanup complete');
+        // Force renderer cleanup
+        if (renderer) {
+            renderer.renderLists.dispose();
+        }
+
+        console.log('✅ Cleanup complete - Track data structure preserved');
     }
 }
 
 // Menu navigation functions
 export function setupMenuNavigation(gameInitializer) {
     document.getElementById('mute-button').addEventListener('click', function () {
-        //console.log('🔊 Pause menu mute button clicked');
         muteAudio();
     });
 
@@ -274,17 +309,21 @@ export function setupMenuNavigation(gameInitializer) {
         }
     });
 
+
     document.getElementById('back-to-main-from-pause').addEventListener('click', async () => {
+        console.log('📋 Back to Main clicked - starting cleanup...');
         await gameInitializer.cleanup();
+        // Small delay to ensure event loop clears
+        await new Promise(resolve => setTimeout(resolve, 50));
         document.getElementById('pauseMenu').style.display = 'none';
         document.getElementById('main-menu').style.display = 'block';
+        console.log('📋 Menu switch complete');
     });
 
     document.getElementById('start-singleplayer-button').addEventListener('click', function () {
         const trackSelect = document.getElementById('trackSelect-single');
         const selectedTrack = trackSelect.value;
         if (selectedTrack) {
-            //console.log(`🎮 Starting single player game with track: ${selectedTrack}`);
             gameInitializer.initGame(selectedTrack, false);
             document.getElementById('track-select-menu').style.display = 'none';
         } else {

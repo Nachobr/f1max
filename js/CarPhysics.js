@@ -15,7 +15,7 @@ export const carState = {
     braking: 0.95,
     reverseSpeed: 0.02,
     friction: 0.985,
-    handling: 0.04,
+    handling: 0.022,
     grip: 0.95,
     
     // NEW: Kerb interaction state

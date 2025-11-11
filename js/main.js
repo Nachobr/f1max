@@ -1,15 +1,13 @@
 import { setupMenuNavigation, loadTrackByName } from './GameInitializer.js';
 import { togglePause } from './GameStateManager.js';
-
-
-
+import { GameInitializer } from './GameInitializer.js';
 
 document.addEventListener('DOMContentLoaded', async () => {
+    // ✅ FIXED: Proper instantiation and await
+    window.gameInitializer = new GameInitializer();
     
-
-    window.cameraManager = gameInitializer.cameraManager;
     // Setup menu navigation
-    setupMenuNavigation(gameInitializer);
+    setupMenuNavigation(window.gameInitializer);
 
     // Setup touch device UI
     if ('ontouchstart' in window) {
@@ -25,14 +23,16 @@ document.addEventListener('DOMContentLoaded', async () => {
 
 // Global exports for HTML onclick handlers
 window.toggleCamera = () => {
+    // ✅ DEFENSIVE: Check if global reference exists
     if (window.cameraManager) {
         window.cameraManager.toggleCamera();
+    } else {
+        console.warn('❌ CameraManager not available');
     }
 };
 
 window.loadTrackByName = loadTrackByName;
 window.togglePause = togglePause;
 
-
-// Make gameInitializer globally available for debugging
-window.gameInitializer = () => gameInitializer;
+// ✅ FIXED: Export instance, not a function
+window.gameInitializerInstance = window.gameInitializer;

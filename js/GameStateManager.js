@@ -22,9 +22,9 @@ export function setRenderer(ref) {
 }
 
 export function togglePause() {
-    
+
     gameState.isPaused = !gameState.isPaused;
-    
+
 
     if (uiManager) {
         uiManager.togglePauseMenu();
@@ -69,7 +69,16 @@ export function updateKerbFeedback(isOnKerb) {
 }
 
 export function loadTrackAndRestart(trackName, scene, camera, player) {
-    // Clear existing track
+    // ✅ ALWAYS load track definition FIRST
+    loadTrackDefinition(trackName); // This sets trackData.curve
+
+    // ✅ DEFENSIVE: Check if curve exists
+    if (!trackData.curve) {
+        console.error('❌ Track curve is null after loading definition!');
+        return; // Don't proceed without curve
+    }
+
+    // Now safe to cleanup old meshes
     if (trackData.sceneMeshes?.length > 0) {
         clearTrack(scene);
     }
@@ -91,7 +100,6 @@ export function loadTrackAndRestart(trackName, scene, camera, player) {
     }
 
     // Load and generate new track
-    loadTrackDefinition(trackName);
     generateTrackMesh(scene);
 
     // Reset car physics state

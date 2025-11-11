@@ -73,7 +73,7 @@ export class GameLoop {
 
         // Safety checks
         if (!this.player || !this.cameraManager) {
-            console.warn('Essential components missing, skipping frame');
+            
             return;
         }
 
@@ -87,12 +87,12 @@ export class GameLoop {
         renderer.render(scene, camera);
 
         if (this.frameCounter % (60 * 5) === 0) {
-            console.log('HEAP DELTA:', {
+            {/*console.log('HEAP DELTA:', {
                 heapMB: performance.memory.usedJSHeapSize / 1048576,
                 networkQueueSize: this.networkManager?.outgoingMessageQueue?.length || 0,
                 inputHistoryLen: this.inputManager?.inputHistory?.length || 0,
                 physicsSnapshots: window.physicsSnapshots?.length || 0
-            });
+            });*/}
         }
         this.frameCounter++;
         if (this.frameCounter >= 1000) this.frameCounter = 0;
@@ -119,6 +119,12 @@ export class GameLoop {
         this.lastPhysicsUpdateTime = currentTime;
         this.accumulatedPhysicsTime += deltaTime;
 
+        if (!trackData?.curve || !trackData?.divisions) {
+            console.warn('Track data not ready, skipping physics update');
+            this.accumulatedPhysicsTime = 0; // Prevent buildup
+            return;
+        }
+
         // Fixed physics updates
         while (this.accumulatedPhysicsTime >= this.physicsTimeStep) {
             this.prevCarPosition.copy(this.currentCarPosition);
@@ -136,7 +142,7 @@ export class GameLoop {
                 gyroSteering
             );
 
-            const { position, rotationAngle, speed, isWrongWay, turnDirection } = physicsResult;
+           const { position, rotationAngle, speed, isWrongWay, turnDirection } = physicsResult;
 
             this.currentCarPosition.copy(position);
             this.currentCarRotation.set(0, rotationAngle, 0);
@@ -156,6 +162,7 @@ export class GameLoop {
     updateWheelAnimations(speed, turnDirection, gyroSteering) {
         if (!gameState.playerParts) return;
 
+
         const { wheels, wheelPivots } = gameState.playerParts;
         const wheelRadius = 0.33;
         const circumference = 2 * Math.PI * wheelRadius;
@@ -169,18 +176,26 @@ export class GameLoop {
             wheels.frontRightMeshes.forEach(mesh => mesh.rotation.x -= rotationDelta);
         }
 
+
         // Steer front wheels
         let steerAngle = 0;
-        if (gyroSteering !== null) {
-            steerAngle = gyroSteering * 0.4;
-        } else if (this.inputManager.isTouchDevice) {
-            steerAngle = turnDirection * 0.4;
+        if (gyroSteering !== null && gyroSteering !== 0) {
+            // Active gyro input
+            steerAngle = gyroSteering * 0.07;
+           
         } else {
-            steerAngle = -turnDirection * 0.4;
+            // Use keyboard/touch steering
+            if (this.inputManager.isTouchDevice) {
+                steerAngle = turnDirection * 0.07;
+            } else {
+                steerAngle = turnDirection * -0.07;
+            }
+            
         }
 
-        if (wheelPivots && wheelPivots.frontLeft) wheelPivots.frontLeft.rotation.z = steerAngle;
-        if (wheelPivots && wheelPivots.frontRight) wheelPivots.frontRight.rotation.z = steerAngle;
+
+        wheelPivots.frontLeft.rotation.z = steerAngle;
+        wheelPivots.frontRight.rotation.z = steerAngle;
     }
 
     updateAudio(speed) {
