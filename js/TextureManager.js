@@ -84,6 +84,6 @@ export class TextureManager {
         this.textures.clear();
         this.stats.totalLoaded = 0;
         this.stats.memoryEstimate = 0;
-        console.log('🧹 All textures disposed');
+        //console.log('🧹 All textures disposed');
     }
 }

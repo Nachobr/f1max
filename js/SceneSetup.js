@@ -16,7 +16,7 @@ renderer.shadowMap.enabled = true;
 renderer.shadowMap.type = THREE.PCFSoftShadowMap;
 
 renderer.toneMapping = THREE.ACESFilmicToneMapping;
-// ✅ FIX 1: Lower the overall exposure to darken the bright sky
+
 renderer.toneMappingExposure = 0.5;
 document.body.appendChild(renderer.domElement);
 
@@ -59,11 +59,11 @@ function updateSkyAndLighting() {
 
 
 // --- LIGHTING ---
-// ✅ FIX 2: Drastically increase the AmbientLight to fill in shadows on the track
+
 const ambientLight = new THREE.AmbientLight(0xffffff, 1.2);
 scene.add(ambientLight);
 
-// ✅ FIX 3: Slightly reduce the DirectionalLight to make shadows less harsh
+
 const dirLight = new THREE.DirectionalLight(0xffffff, 1.5);
 dirLight.castShadow = true;
 dirLight.shadow.mapSize.width = 1024; // 1024 is often fine and faster
@@ -97,3 +97,4 @@ window.addEventListener("resize", () => {
     camera.updateProjectionMatrix();
     renderer.setSize(window.innerWidth, window.innerHeight);
 });
+

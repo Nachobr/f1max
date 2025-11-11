@@ -213,7 +213,7 @@
         function lockOrientation() {
             if (screen.orientation && screen.orientation.lock) {
                 screen.orientation.lock('landscape').catch(function (error) {
-                    console.log('Orientation lock failed: ', error);
+                    //console.log('Orientation lock failed: ', error);
                 });
             }
         }
@@ -374,15 +374,115 @@
         }
     </script>
 
-    <script type="module">
-        import { setupMenuNavigation, toggleCamera } from './js/main.js';
-        import { getAvailableTracks } from './js/Utils.js';
-        import { initGame } from './js/main.js';
-        import { loadTrackDefinition } from './js/TrackBuilder.js';
+    <!-- GLOBAL FUNCTIONS FOR HTML ONCLICK HANDLERS -->
+    <script>
+        // Global camera toggle function for HTML onclick handlers
+        function toggleCamera() {
+            if (window.cameraManager) {
+                window.cameraManager.toggleCamera();
+                // Update HUD text
+                updateCameraHUDText();
+                //console.log('📷 Camera toggled via global function');
+            } else {
+                //console.warn('📷 Camera manager not available');
+            }
+        }
 
+        // Update HUD camera text
+        function updateCameraHUDText() {
+            const hudText = document.getElementById('hud-camera-toggle');
+            if (hudText && window.cameraManager) {
+                const isCockpit = window.cameraManager.getCameraMode() === 'cockpit';
+                hudText.textContent = isCockpit ? 'Press C for External View' : 'Press C for Cockpit View';
+            }
+        }
+
+
+        // Global audio mute function - IMPROVED VERSION
+        function muteAudio() {
+
+
+            // Try multiple ways to access audio manager
+            if (window.audioManager && typeof window.audioManager.toggleMute === 'function') {
+
+                const isMuted = window.audioManager.toggleMute();
+
+                return isMuted;
+            } else if (window.gameInitializer && window.gameInitializer.audioManager && typeof window.gameInitializer.audioManager.toggleMute === 'function') {
+
+                const isMuted = window.gameInitializer.audioManager.toggleMute();
+
+                return isMuted;
+            } else if (window.gameStateManager && window.gameStateManager.audioManager && typeof window.gameStateManager.audioManager.toggleMute === 'function') {
+
+                const isMuted = window.gameStateManager.audioManager.toggleMute();
+
+                return isMuted;
+            } else {
+
+                alert('Audio system not ready. Please make sure the game is running and try again.');
+                return false;
+            }
+        }
+
+        // Global back to main menu function
+        function backToMainMenu() {
+            if (window.cleanupGame) {
+                window.cleanupGame();
+            }
+            document.getElementById('pauseMenu').style.display = 'none';
+            document.getElementById('main-menu').style.display = 'block';
+        }
+
+        function togglePause() {
+            //console.log('⏸️ Global pause function called');
+            if (window.gameStateManager && window.gameStateManager.togglePause) {
+                //console.log('⏸️ Using window.gameStateManager.togglePause');
+                window.gameStateManager.togglePause();
+            } else if (window.togglePauseGame) {
+                //console.log('⏸️ Using window.togglePauseGame');
+                window.togglePauseGame();
+            } else {
+                console.warn('❌ No pause function available');
+            }
+        }
+
+        // Make functions available globally
         window.toggleCamera = toggleCamera;
+        window.updateCameraHUDText = updateCameraHUDText;
+        window.togglePause = togglePause;
+        window.muteAudio = muteAudio;
+        window.backToMainMenu = backToMainMenu;
+        window.addEventListener('DOMContentLoaded', function () {});
+    </script>
 
-        document.addEventListener('DOMContentLoaded', function () {
+    <script type="module">
+        // Import from the new modular structure
+        import { GameInitializer, setupMenuNavigation, loadTrackByName } from './js/GameInitializer.js';
+        import { getAvailableTracks } from './js/Utils.js';
+
+        // Global game initializer instance
+        let gameInitializer;
+
+        // Make functions globally available for module system
+        window.loadTrackByName = loadTrackByName;
+
+        window.togglePauseGame = () => {
+            if (window.gameStateManager) {
+                window.gameStateManager.togglePause();
+            }
+        };
+
+        window.cleanupGame = () => {
+            if (gameInitializer) {
+                gameInitializer.cleanup();
+            }
+        };
+
+        document.addEventListener('DOMContentLoaded', async function () {
+            // Initialize game system
+            gameInitializer = new GameInitializer();
+
             // Resume audio context (needed for modern browsers)
             if (window.AudioContext || window.webkitAudioContext) {
                 const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -392,8 +492,8 @@
             // Show main menu by default
             document.getElementById('main-menu').style.display = 'block';
 
-            // Setup menu navigation
-            setupMenuNavigation();
+            // Setup menu navigation with game initializer
+            setupMenuNavigation(gameInitializer);
 
             // Populate track selection dropdowns
             function populateTrackSelect(selectId) {
@@ -413,44 +513,63 @@
             populateTrackSelect('trackSelect-network');
             populateTrackSelect('trackSelect-single');
 
-            // Add event listeners for starting the game
-            document.getElementById('start-game-main-button')?.addEventListener('click', function () {
-                const trackSelect = document.getElementById('trackSelect-network');
-                const selectedTrack = trackSelect.value;
-
-                if (selectedTrack) {
-                    initGame(selectedTrack, true);
-                    document.getElementById('networkMenu').style.display = 'none';
-                } else {
-                    alert('Please select a track first!');
-                }
-            });
-
-            document.getElementById('start-singleplayer-button').addEventListener('click', function () {
-                const trackSelect = document.getElementById('trackSelect-single');
-                const selectedTrack = trackSelect.value;
-
-                if (selectedTrack) {
-                    initGame(selectedTrack, false);
-                    document.getElementById('track-select-menu').style.display = 'none';
-                } else {
-                    alert('Please select a track first!');
-                }
-            });
-
             // Initialize touch controls if on a touch device
             if ('ontouchstart' in window) {
                 document.getElementById('touch-controls').style.display = 'block';
             }
         });
+
+
     </script>
+
+    <!-- MOBILE MENU FUNCTIONALITY -->
     <script>
+        function debugEventListeners() {
+            //console.log('🔍 DEBUG: Checking for duplicate event listeners...');
+
+            // Track all buttons that might cause initGame to be called
+            const criticalButtons = [
+                'start-singleplayer-button',
+                'multiplayer-button',
+                'singleplayer-button',
+                'create-room-button',
+                'join-room-button',
+                'start-game-button'
+            ];
+
+            criticalButtons.forEach(buttonId => {
+                const button = document.getElementById(buttonId);
+                if (button) {
+                    const listeners = getEventListeners(button);
+                    //console.log(`📝 ${buttonId} has ${Object.keys(listeners).length} event types registered`);
+                    Object.keys(listeners).forEach(eventType => {
+                        //console.log(`   - ${eventType}: ${listeners[eventType].length} listeners`);
+                    });
+                } else {
+                    //console.log(`❌ ${buttonId} not found`);
+                }
+            });
+        }
+
+        // Function to check if getEventListeners is available (Chrome DevTools)
+        function checkGetEventListeners() {
+            if (typeof getEventListeners === 'undefined') {
+                //console.log('⚠️ getEventListeners not available. Open Chrome DevTools and run in console.');
+                return false;
+            }
+            return true;
+        }
+
+        // Make these functions globally available
+        window.debugEventListeners = debugEventListeners;
+        window.checkGetEventListeners = checkGetEventListeners;
         // Mobile menu functionality
         let isMobileMenuOpen = false;
 
         function toggleMobileMenu() {
             const menuPanel = document.getElementById('mobile-menu-panel');
             const overlay = document.querySelector('.mobile-menu-overlay');
+
             function updateGyroOrientationUI() {
                 const indicator = document.getElementById('gyro-orientation-indicator');
                 const holdPosition = document.getElementById('gyro-hold-position');
@@ -469,6 +588,7 @@
                 menuPanel.style.right = '0';
                 if (overlay) overlay.style.display = 'block';
                 isMobileMenuOpen = true;
+                updateGyroOrientationUI();
             } else {
                 menuPanel.style.right = '-300px';
                 if (overlay) overlay.style.display = 'none';
@@ -482,44 +602,6 @@
             menuPanel.style.right = '-300px';
             if (overlay) overlay.style.display = 'none';
             isMobileMenuOpen = false;
-        }
-
-        // Global functions for mobile menu buttons
-        function togglePause() {
-            if (window.togglePauseGame) {
-                window.togglePauseGame();
-            }
-            closeMobileMenu();
-        }
-
-        function toggleCamera() {
-            if (window.cameraManager) {
-                const cameraButton = document.querySelector('button[onclick="toggleCamera()"]');
-                if (cameraButton) {
-                    cameraButton.textContent = 'Camera Toggled!';
-                }
-                window.cameraManager.toggleCamera();
-                console.log('📷 Camera toggled');
-            } else {
-                console.warn('📷 Camera manager not available');
-            }
-            closeMobileMenu();
-        }
-
-        function muteAudio() {
-            if (window.audioManager) {
-                window.audioManager.toggleMute();
-            }
-            closeMobileMenu();
-        }
-
-        function backToMainMenu() {
-            if (window.cleanupGame) {
-                window.cleanupGame();
-            }
-            document.getElementById('pauseMenu').style.display = 'none';
-            document.getElementById('main-menu').style.display = 'block';
-            closeMobileMenu();
         }
 
         // Initialize mobile menu when DOM is loaded
@@ -541,12 +623,7 @@
                     document.getElementById('mobile-menu-panel').style.display = 'block';
                 }
             }
-
-
-
-
         });
-
     </script>
 </body>
 

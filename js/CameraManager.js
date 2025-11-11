@@ -1,5 +1,4 @@
-// --- START OF FILE js/CameraManager.js ---
-
+// CameraManager.js - Fixed version
 import * as THREE from 'three';
 
 export class CameraManager {
@@ -11,20 +10,25 @@ export class CameraManager {
         // Pre-allocated vectors for zero memory allocation
         this.cameraPos = new THREE.Vector3();
         this.lookAhead = new THREE.Vector3();
-        this.cameraPosition = new THREE.Vector3(); // ADD THIS
-        this.lookAtTarget = new THREE.Vector3();   // ADD THIS
+        this.cameraPosition = new THREE.Vector3();
+        this.lookAtTarget = new THREE.Vector3();
 
-        // Camera settings
-        this.cockpitOffset = new THREE.Vector3(0, 1.2, -0.15); // (side, height, forward/back)
-        this.externalOffset = new THREE.Vector3(-10, 5, -10);
-    }
+        // Camera settings - USING GITHUB VALUES
+        this.cockpitOffset = new THREE.Vector3(0, 1.2, 0.15);  // FIXED: Changed z from -0.15 to 0.15
+        this.externalOffset = new THREE.Vector3(-10, 5, -10); // GitHub values
 
-    setCockpitCamera(active) {
-        this.cockpitCameraActive = active;
+        //console.log('📷 CameraManager initialized with FIXED logic');
     }
 
     toggleCamera() {
         this.cockpitCameraActive = !this.cockpitCameraActive;
+        //console.log(`📷 Camera toggled to: ${this.cockpitCameraActive ? 'COCKPIT' : 'EXTERNAL'}`);
+
+        // Update HUD text if the global function exists
+        if (window.updateCameraHUDText) {
+            window.updateCameraHUDText();
+        }
+
         return this.cockpitCameraActive;
     }
 
@@ -38,29 +42,28 @@ export class CameraManager {
         const cosY = Math.cos(this.player.rotation.y);
 
         if (this.cockpitCameraActive) {
-            this.updateCockpitCamera();
+            this.updateCockpitCamera(playerX, playerY, playerZ, sinY, cosY);
         } else {
             this.updateExternalCamera(playerX, playerY, playerZ, sinY, cosY);
         }
     }
 
-    updateCockpitCamera() {
-        // Calculate the desired camera position in the car's local space
-        const desiredPosition = this.cockpitOffset.clone().applyQuaternion(this.player.quaternion);
+    updateCockpitCamera(playerX, playerY, playerZ, sinY, cosY) {
+        // FIXED cockpit logic - position INSIDE the car
+        const cockpitX = playerX - sinY * this.cockpitOffset.z;  // FIXED: Changed + to -
+        const cockpitY = playerY + this.cockpitOffset.y;
+        const cockpitZ = playerZ - cosY * this.cockpitOffset.z;  // FIXED: Changed + to -
 
-        // Add the car's world position to get the final camera position
-        this.cameraPosition.copy(this.player.position).add(desiredPosition);
-        this.camera.position.copy(this.cameraPosition);
+        this.camera.position.set(cockpitX, cockpitY, cockpitZ);
 
-        // Calculate the look-at target
-        this.lookAtTarget.set(0, 0, 100).applyQuaternion(this.player.quaternion);
-        this.lookAtTarget.add(this.player.position);
-
-        this.camera.lookAt(this.lookAtTarget);
+        // Look ahead in car's direction
+        const lookAtX = playerX + sinY * 50;
+        const lookAtZ = playerZ + cosY * 50;
+        this.camera.lookAt(lookAtX, cockpitY - 0.3, lookAtZ);
     }
 
     updateExternalCamera(playerX, playerY, playerZ, sinY, cosY) {
-        // External camera - pre-calculate multiplications  
+        // GitHub external camera logic - THIS IS CORRECT
         const forwardX = sinY * this.externalOffset.x;
         const forwardZ = cosY * this.externalOffset.z;
 
@@ -69,24 +72,31 @@ export class CameraManager {
             playerY + this.externalOffset.y,
             playerZ + forwardZ
         );
-        this.camera.lookAt(playerX, playerY, playerZ);
+
+        // Look at the car
+        this.camera.lookAt(playerX, playerY + 1, playerZ);
     }
 
-    // Method to update camera settings if needed
+    // Method to get current camera mode
+    getCameraMode() {
+        return this.cockpitCameraActive ? 'cockpit' : 'external';
+    }
+
+    // Optional: Update camera settings
     updateSettings(cockpitSettings = null, externalSettings = null) {
         if (cockpitSettings) {
             this.cockpitOffset.set(
-                cockpitSettings.offsetX || -3.0,
-                cockpitSettings.offsetY || 1.3,
-                cockpitSettings.offsetZ || 0.2
+                cockpitSettings.x || 0,
+                cockpitSettings.y || 1.2,
+                cockpitSettings.z || 0.15  // FIXED: Changed from -0.15 to 0.15
             );
         }
 
         if (externalSettings) {
             this.externalOffset.set(
-                externalSettings.offsetX || -10,
-                externalSettings.offsetY || 5,
-                externalSettings.offsetZ || -10
+                externalSettings.x || -10,
+                externalSettings.y || 5,
+                externalSettings.z || -10
             );
         }
     }

@@ -28,6 +28,8 @@ export class UIManager {
 
         // Buttons
         this.resumeButton = document.getElementById('resume-button');
+        this.resumeButton.addEventListener('click', () => {this.resumeGame();});
+        
         this.editorButton = document.getElementById('editor-button');
         this.createRoomButton = document.getElementById('create-room-button');
         this.joinRoomButton = document.getElementById('join-room-button');
@@ -41,15 +43,21 @@ export class UIManager {
 
         this.mobileGyroToggle = document.getElementById('mobile-gyro-toggle');
 
-        console.log('🎮 UIManager gyro toggles:', {
-            main: !!this.gyroToggle,
-            mobile: !!this.mobileGyroToggle
-        });
+        
 
 
     }
 
-
+    resumeGame() {
+        
+        if (window.gameStateManager) {
+            window.gameStateManager.togglePause();
+        } else if (window.togglePauseGame) {
+            window.togglePauseGame();
+        } else {
+           
+        }
+    }
 
     showNotification(message, type = 'info') {
         // Create a simple notification

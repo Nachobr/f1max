@@ -1,76 +1,378 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Track Editor for F1 Sim</title>
   <style>
-    body { margin: 0; font-family: Arial; background: #222; color: white; }
-    #canvas { border: 1px solid #fff; cursor: crosshair; display: block; margin: 10px auto; background: #000; }
-    #controls { text-align: center; margin: 10px; }
-    button { padding: 10px 20px; margin: 5px; background: #ff4400; color: white; border: none; cursor: pointer; }
-    button.active { background: #44ff00; color: black; }
-    #export { background: #44ff00; color: black; font-family: monospace; }
-    #output { width: 100%; height: 200px; margin-top: 10px; font-family: monospace; background: #111; color: #0f0; padding: 10px; }
-    #saveInput { padding: 5px; margin-left: 10px; }
-
-    /* NEW STYLE FOR ZOOM GROUP */
-    .zoom-controls {
-        display: inline-block;
-        margin-left: 20px;
-        border-left: 1px solid #555;
-        padding-left: 20px;
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #222;
+      color: white;
     }
-    .zoom-controls button {
-        width: 100px;
-        padding: 8px 15px;
-        margin: 5px;
+
+    #canvas {
+      border: 1px solid #fff;
+      cursor: crosshair;
+      display: block;
+      margin: 10px auto;
+      background: #000;
+    }
+
+    #controls {
+      text-align: center;
+      margin: 10px;
+    }
+
+    button {
+      padding: 10px 20px;
+      margin: 5px;
+      background: #ff4400;
+      color: white;
+      border: none;
+      cursor: pointer;
+    }
+
+    button.active {
+      background: #44ff00;
+      color: black;
+    }
+
+    button.secondary {
+      background: #4444ff;
+    }
+
+    #export {
+      background: #44ff00;
+      color: black;
+      font-family: monospace;
+    }
+
+    #output {
+      width: 100%;
+      height: 200px;
+      margin-top: 10px;
+      font-family: monospace;
+      background: #111;
+      color: #0f0;
+      padding: 10px;
+    }
+
+    #saveInput {
+      padding: 5px;
+      margin-left: 10px;
+    }
+
+    .control-group {
+      display: inline-block;
+      margin-left: 20px;
+      border-left: 1px solid #555;
+      padding-left: 20px;
+    }
+
+    .control-group button {
+      width: 100px;
+      padding: 8px 15px;
+      margin: 5px;
+    }
+
+    .status-bar {
+      text-align: center;
+      margin: 10px;
+      padding: 10px;
+      background: #333;
+      border-radius: 5px;
+    }
+
+    .tooltip {
+      position: absolute;
+      background: rgba(0, 0, 0, 0.8);
+      color: white;
+      padding: 5px 10px;
+      border-radius: 3px;
+      pointer-events: none;
+      z-index: 1000;
+    }
+
+    .warning {
+      color: #ff4444;
+      font-weight: bold;
+      margin: 5px 0;
     }
   </style>
 </head>
+
 <body>
   <h1 style="text-align: center;">F1 Track Editor</h1>
-  <p style="text-align: center;">Use buttons to switch modes. In Add Mode: Click to add points. In Edit Mode: Drag points (click and hold on points). Close loop by dragging last point near first (snaps automatically).</p>
-  <canvas id="canvas" width="800" height="600"></canvas>
+  <p style="text-align: center;">
+    <strong>Tools:</strong> Add Points | Edit Points | Pan View | Delete Points<br>
+    <strong>Controls:</strong> Drag points to edit • Right-click to delete • Mouse wheel to zoom • Middle-click to
+    pan<br>
+    <strong class="warning">⚠️ Minimum track size: 200x200 units to prevent overlapping</strong>
+  </p>
+
+  <div class="status-bar" id="status">
+    Points: 0 | Mode: Add Points | Zoom: 1.0x | Smoothing: Enabled | Bounds: 0x0
+  </div>
+
+  <canvas id="canvas" width="1200" height="800"></canvas>
+
   <div id="controls">
-    <button id="addBtn" class="active" onclick="setMode('add')">Add New Point</button>
-    <button id="editBtn" onclick="setMode('edit')">Drag/Edit Points</button>
+    <!-- Mode Controls -->
+    <button id="addBtn" class="active" onclick="setMode('add')">Add Points</button>
+    <button id="editBtn" onclick="setMode('edit')">Edit Points</button>
+    <button id="panBtn" onclick="setMode('pan')">Pan View</button>
+    <button id="deleteBtn" onclick="setMode('delete')">Delete Points</button>
+
+    <!-- Track Operations -->
     <button onclick="clearPoints()">Clear All</button>
-    <button onclick="exportPoints()">Export Track Points</button>
-    
-    <div class="zoom-controls">
-        <button onclick="zoom(1.2)">Zoom In +</button>
-        <button onclick="zoom(1/1.2)">Zoom Out -</button>
+    <button onclick="exportPoints()">Export Track</button>
+    <button onclick="smoothTrack()">Smooth Corners</button>
+    <button onclick="importPoints()" style="background: #ffaa00;">Import Points</button>
+    <button onclick="importMonzaTrack()" style="background: #ff00aa;">Load New Monza</button>
+    <button onclick="scaleTrack(2)" style="background: #44aaff;">Scale Up 2x</button>
+
+    <!-- View Controls -->
+    <div class="control-group">
+      <button onclick="zoom(1.2)">Zoom In +</button>
+      <button onclick="zoom(1/1.2)">Zoom Out -</button>
+      <button onclick="resetView()">Reset View</button>
+      <button onclick="fitToView()">Fit to View</button>
     </div>
 
-    <input type="text" id="saveInput" placeholder="Enter Track Name" value="Custom Track 1">
-    <button onclick="saveTrack()">Save Track</button>
-    <button onclick="loadTrackList()">Load Tracks</button>
-    <select id="loadSelect" onchange="loadSelectedTrack()"></select>
+    <!-- Track Management -->
+    <div class="control-group">
+      <input type="text" id="saveInput" placeholder="Enter Track Name" value="Custom Track 1">
+      <button onclick="saveTrack()">Save Track</button>
+      <button onclick="loadTrackList()">Refresh Tracks</button>
+      <select id="loadSelect" onchange="loadSelectedTrack()">
+        <option value="">Select Track...</option>
+      </select>
+    </div>
+
+    <!-- Track Settings -->
+    <div class="control-group">
+      <label>
+        <input type="checkbox" id="smoothingToggle" checked onchange="toggleSmoothing()">
+        Real-time Smoothing
+      </label>
+      <label>
+        <input type="checkbox" id="snapToggle" onchange="toggleSnap()">
+        Snap to Grid
+      </label>
+      <label>
+        <input type="checkbox" id="minSizeToggle" checked onchange="toggleMinSize()">
+        Enforce Min Size
+      </label>
+    </div>
   </div>
+
   <textarea id="output" readonly placeholder="Exported code will appear here..."></textarea>
 
   <script>
     const canvas = document.getElementById('canvas');
     const ctx = canvas.getContext('2d');
-    let scale = 4; // Pixels per unit (adjust for zoom) - MADE LET for modification
-    const offsetX = canvas.width / 2;
-    const offsetY = canvas.height / 2;
-    // NOTE: hitRadius must now be calculated inside mouse events to use the current scale
-    
-    let points = []; // Array of {x, z} (y=0 fixed)
+    let scale = 2; // Reduced initial scale for larger tracks
+    let offsetX = canvas.width / 2;
+    let offsetY = canvas.height / 2;
+    let panStartX = 0;
+    let panStartY = 0;
+    let isPanning = false;
+
+    let points = [];
     let draggingIndex = -1;
     let isDragging = false;
-    let mode = 'add'; // 'add' or 'edit'
+    let mode = 'add';
+    let enableSmoothing = true;
+    let enableSnap = false;
+    let enforceMinSize = true; // New: enforce minimum size
+    let smoothedPoints = [];
 
-    // --- ZOOM FUNCTION (NEW) ---
+    // Minimum track dimensions to prevent overlapping
+    const MIN_TRACK_WIDTH = 200;
+    const MIN_TRACK_HEIGHT = 200;
+
+    // Tooltip element
+    const tooltip = document.createElement('div');
+    tooltip.className = 'tooltip';
+    document.body.appendChild(tooltip);
+
+    // --- VIEW CONTROLS ---
     function zoom(factor) {
-        // Prevent scale from becoming too small or too large
-        scale = Math.max(0.5, Math.min(scale * factor, 30)); 
-        redraw();
+      scale = Math.max(0.05, Math.min(scale * factor, 20)); // Adjusted zoom range
+      updateStatus();
+      redraw();
     }
-    
-    // --- TRACK STORAGE UTILITIES ---
 
+    function resetView() {
+      scale = 2;
+      offsetX = canvas.width / 2;
+      offsetY = canvas.height / 2;
+      updateStatus();
+      redraw();
+    }
+
+    function fitToView() {
+      if (points.length === 0) return;
+
+      const bounds = getTrackBounds();
+      const trackWidth = bounds.maxX - bounds.minX;
+      const trackHeight = bounds.maxZ - bounds.minZ;
+
+      // Calculate scale to fit track with some padding
+      const padding = 50;
+      const scaleX = (canvas.width - padding * 2) / trackWidth;
+      const scaleZ = (canvas.height - padding * 2) / trackHeight;
+
+      scale = Math.min(scaleX, scaleZ, 10); // Don't zoom in too much
+
+      // Center the track
+      offsetX = canvas.width / 2 - ((bounds.minX + bounds.maxX) / 2) * scale;
+      offsetY = canvas.height / 2 + ((bounds.minZ + bounds.maxZ) / 2) * scale;
+
+      updateStatus();
+      redraw();
+    }
+
+    // --- TRACK BOUNDS CHECKING ---
+    function getTrackBounds() {
+      if (points.length === 0) {
+        return { minX: 0, maxX: 0, minZ: 0, maxZ: 0 };
+      }
+
+      let minX = points[0].x, maxX = points[0].x;
+      let minZ = points[0].z, maxZ = points[0].z;
+
+      points.forEach(point => {
+        minX = Math.min(minX, point.x);
+        maxX = Math.max(maxX, point.x);
+        minZ = Math.min(minZ, point.z);
+        maxZ = Math.max(maxZ, point.z);
+      });
+
+      return { minX, maxX, minZ, maxZ };
+    }
+
+    function checkTrackSize() {
+      if (!enforceMinSize || points.length < 3) return true;
+
+      const bounds = getTrackBounds();
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxZ - bounds.minZ;
+
+      return width >= MIN_TRACK_WIDTH && height >= MIN_TRACK_HEIGHT;
+    }
+
+    function scaleTrack(factor) {
+      if (points.length === 0) return;
+
+      const bounds = getTrackBounds();
+      const centerX = (bounds.minX + bounds.maxX) / 2;
+      const centerZ = (bounds.minZ + bounds.maxZ) / 2;
+
+      points = points.map(point => ({
+        x: centerX + (point.x - centerX) * factor,
+        z: centerZ + (point.z - centerZ) * factor
+      }));
+
+      updateSmoothedPoints();
+      redraw();
+      updateStatus();
+    }
+
+    // --- TRACK SMOOTHING ---
+    function smoothTrackPoints(points, smoothness = 0.3, maxAngle = 60) {
+      if (points.length < 3) return points;
+
+      const smoothedPoints = [points[0]];
+      const maxAngleRad = Math.PI * maxAngle / 180;
+
+      for (let i = 1; i < points.length - 1; i++) {
+        const prev = points[i - 1];
+        const current = points[i];
+        const next = points[i + 1];
+
+        const v1 = { x: current.x - prev.x, z: current.z - prev.z };
+        const v2 = { x: next.x - current.x, z: next.z - current.z };
+        const mag1 = Math.sqrt(v1.x * v1.x + v1.z * v1.z);
+        const mag2 = Math.sqrt(v2.x * v2.x + v2.z * v2.z);
+
+        if (mag1 > 0 && mag2 > 0) {
+          const dot = (v1.x * v2.x + v1.z * v2.z) / (mag1 * mag2);
+          const angle = Math.acos(Math.max(-1, Math.min(1, dot)));
+
+          if (angle > maxAngleRad) {
+            const numIntermediatePoints = Math.ceil(angle / maxAngleRad) * 2;
+
+            for (let j = 1; j <= numIntermediatePoints; j++) {
+              const t = j / (numIntermediatePoints + 1);
+              const smoothPoint = {
+                x: prev.x + (current.x - prev.x) * t,
+                z: prev.z + (current.z - prev.z) * t
+              };
+              smoothedPoints.push(smoothPoint);
+            }
+
+            smoothedPoints.push(current);
+
+            for (let j = 1; j <= numIntermediatePoints; j++) {
+              const t = j / (numIntermediatePoints + 1);
+              const smoothPoint = {
+                x: current.x + (next.x - current.x) * t,
+                z: current.z + (next.z - current.z) * t
+              };
+              smoothedPoints.push(smoothPoint);
+            }
+          } else {
+            smoothedPoints.push(current);
+          }
+        } else {
+          smoothedPoints.push(current);
+        }
+      }
+
+      smoothedPoints.push(points[points.length - 1]);
+      return smoothedPoints;
+    }
+
+    function smoothTrack() {
+      if (points.length < 3) {
+        alert('Need at least 3 points to smooth track');
+        return;
+      }
+      points = smoothTrackPoints(points, 0.3, 45);
+      updateSmoothedPoints();
+      redraw();
+      updateStatus();
+    }
+
+    function toggleSmoothing() {
+      enableSmoothing = !enableSmoothing;
+      updateSmoothedPoints();
+      redraw();
+      updateStatus();
+    }
+
+    function toggleSnap() {
+      enableSnap = !enableSnap;
+      updateStatus();
+    }
+
+    function toggleMinSize() {
+      enforceMinSize = !enforceMinSize;
+      updateStatus();
+    }
+
+    function updateSmoothedPoints() {
+      if (enableSmoothing && points.length >= 3) {
+        smoothedPoints = smoothTrackPoints(points, 0.3, 60);
+      } else {
+        smoothedPoints = [...points];
+      }
+    }
+
+    // --- TRACK STORAGE ---
     function getTrackNames() {
       try {
         return JSON.parse(localStorage.getItem('trackNames')) || ['Monza Standard'];
@@ -86,11 +388,20 @@
         return;
       }
 
-      // Store the points array
-      localStorage.setItem(`trackData_${trackName}`, JSON.stringify(points.map(p => ({ x: p.x.toFixed(1), z: p.z.toFixed(1) }))));
+      // Check track size before saving
+      if (enforceMinSize && !checkTrackSize()) {
+        const bounds = getTrackBounds();
+        const width = bounds.maxX - bounds.minX;
+        const height = bounds.maxZ - bounds.minZ;
+        alert(`Track too small! Current size: ${width.toFixed(0)}x${height.toFixed(0)}. Minimum required: ${MIN_TRACK_WIDTH}x${MIN_TRACK_HEIGHT}. Use "Scale Up 2x" button.`);
+        return;
+      }
 
-      // Update the list of track names
-      const trackNames = getTrackNames().filter(name => name !== 'Monza Standard'); // Keep custom only
+      localStorage.setItem(`trackData_${trackName}`, JSON.stringify(
+        points.map(p => ({ x: p.x.toFixed(1), z: p.z.toFixed(1) }))
+      ));
+
+      const trackNames = getTrackNames().filter(name => name !== 'Monza Standard');
       if (!trackNames.includes(trackName)) {
         trackNames.push(trackName);
         localStorage.setItem('trackNames', JSON.stringify(trackNames));
@@ -101,13 +412,14 @@
 
     function loadTrack(name) {
       if (name === 'Monza Standard') {
-        // Load the default points (approximation of the ones in TrackBuilder.js)
+        // Updated Monza with larger scale
         points = [
-            { x: 52.5, z: -33.0 }, { x: 51.0, z: 17.8 }, { x: 35.0, z: 52.0 },
-            { x: -23.3, z: 55.0 }, { x: -48.0, z: 42.8 }, { x: -59.5, z: 20.5 },
-            { x: -52.3, z: -16.0 }, { x: -43.3, z: -52.2 }, { x: 7.3, z: -52.5 },
-            { x: 30.8, z: -52.0 }, { x: 39.5, z: -50.5 }, { x: 52.5, z: -33.2 }
-        ].map(p => ({ x: p.x, z: -p.z })); // Flip Z to match canvas/sim convention
+          { x: 350.0, z: 200.0 }, { x: 320.0, z: 50.0 }, { x: 250.0, z: 0.0 },
+          { x: 180.0, z: -20.0 }, { x: 100.0, z: -30.0 }, { x: 20.0, z: -25.0 },
+          { x: -50.0, z: 0.0 }, { x: -80.0, z: 50.0 }, { x: -70.0, z: 120.0 },
+          { x: -30.0, z: 180.0 }, { x: 50.0, z: 200.0 }, { x: 150.0, z: 190.0 },
+          { x: 250.0, z: 160.0 }, { x: 320.0, z: 120.0 }, { x: 350.0, z: 200.0 }
+        ];
       } else {
         const data = localStorage.getItem(`trackData_${name}`);
         if (data) {
@@ -118,14 +430,15 @@
         }
       }
       document.getElementById('saveInput').value = name;
+      updateSmoothedPoints();
       redraw();
-      // Removed alert for smoother UX
+      updateStatus();
     }
 
     function loadTrackList() {
       const trackNames = getTrackNames();
       const select = document.getElementById('loadSelect');
-      select.innerHTML = ''; // Clear existing options
+      select.innerHTML = '<option value="">Select Track...</option>';
       trackNames.forEach(name => {
         const option = document.createElement('option');
         option.value = name;
@@ -141,181 +454,442 @@
         loadTrack(selectedTrackName);
       }
     }
-    
-    // --- CANVAS AND EDITOR LOGIC ---
 
-    // Set mode and update UI/cursor
+    // --- EDITOR FUNCTIONS ---
     function setMode(newMode) {
       mode = newMode;
       document.getElementById('addBtn').classList.toggle('active', newMode === 'add');
       document.getElementById('editBtn').classList.toggle('active', newMode === 'edit');
-      canvas.style.cursor = newMode === 'add' ? 'crosshair' : 'grab';
+      document.getElementById('panBtn').classList.toggle('active', newMode === 'pan');
+      document.getElementById('deleteBtn').classList.toggle('active', newMode === 'delete');
+
+      canvas.style.cursor =
+        newMode === 'add' ? 'crosshair' :
+          newMode === 'edit' ? 'grab' :
+            newMode === 'pan' ? 'move' :
+              newMode === 'delete' ? 'not-allowed' : 'default';
+
+      updateStatus();
     }
 
-    // Draw a point (larger visual size)
-    function drawPoint(x, z, isDragging = false) {
-      const px = offsetX + x * scale;
-      const pz = offsetY - z * scale; // Invert Z for screen coords
+    function worldToScreen(x, z) {
+      return {
+        x: offsetX + x * scale,
+        y: offsetY - z * scale
+      };
+    }
+
+    function screenToWorld(x, y) {
+      return {
+        x: (x - offsetX) / scale,
+        z: (offsetY - y) / scale
+      };
+    }
+
+    function drawPoint(x, z, isDragging = false, isControlPoint = true) {
+      const screen = worldToScreen(x, z);
       ctx.beginPath();
-      ctx.arc(px, pz, 8, 0, Math.PI * 2);
-      ctx.fillStyle = isDragging ? '#ff0' : '#fff';
+      ctx.arc(screen.x, screen.y, isControlPoint ? 8 : 4, 0, Math.PI * 2);
+      ctx.fillStyle = isControlPoint ?
+        (isDragging ? '#ff0' : '#fff') :
+        (isDragging ? '#0ff' : '#888');
       ctx.fill();
       ctx.strokeStyle = '#000';
       ctx.lineWidth = 2;
       ctx.stroke();
     }
 
-    // Draw the curve preview (simple line through points for editing; sim uses CatmullRom for smoothness)
     function drawCurve() {
-      if (points.length < 2) return;
+      if (smoothedPoints.length < 2) return;
+
+      // Draw smoothed curve
       ctx.strokeStyle = '#0f0';
       ctx.lineWidth = 3;
       ctx.beginPath();
-      let px = offsetX + points[0].x * scale;
-      let pz = offsetY - points[0].z * scale;
-      ctx.moveTo(px, pz);
-      for (let i = 1; i < points.length; i++) {
-        px = offsetX + points[i].x * scale;
-        pz = offsetY - points[i].z * scale;
-        ctx.lineTo(px, pz);
+      const first = worldToScreen(smoothedPoints[0].x, smoothedPoints[0].z);
+      ctx.moveTo(first.x, first.y);
+
+      for (let i = 1; i < smoothedPoints.length; i++) {
+        const screen = worldToScreen(smoothedPoints[i].x, smoothedPoints[i].z);
+        ctx.lineTo(screen.x, screen.y);
       }
       ctx.stroke();
+
+      // Draw original control points line
+      if (points.length >= 2) {
+        ctx.strokeStyle = '#ff0';
+        ctx.lineWidth = 1;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+        const firstCtrl = worldToScreen(points[0].x, points[0].z);
+        ctx.moveTo(firstCtrl.x, firstCtrl.y);
+
+        for (let i = 1; i < points.length; i++) {
+          const screen = worldToScreen(points[i].x, points[i].z);
+          ctx.lineTo(screen.x, screen.y);
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+      }
     }
 
-    // Draw grid for reference
     function drawGrid() {
       ctx.strokeStyle = '#333';
       ctx.lineWidth = 1;
       const gridSize = 50;
-      
-      // Calculate world units to draw based on current scale
-      const worldWidth = canvas.width / scale / 2;
-      const worldHeight = canvas.height / scale / 2;
+      const worldWidth = canvas.width / scale;
+      const worldHeight = canvas.height / scale;
 
-      for (let x = -worldWidth; x <= worldWidth; x += gridSize / scale) {
+      for (let x = -worldWidth; x <= worldWidth; x += gridSize) {
         ctx.beginPath();
-        ctx.moveTo(offsetX + x * scale, 0);
-        ctx.lineTo(offsetX + x * scale, canvas.height);
+        const screen = worldToScreen(x, 0);
+        ctx.moveTo(screen.x, 0);
+        ctx.lineTo(screen.x, canvas.height);
         ctx.stroke();
       }
-      for (let z = -worldHeight; z <= worldHeight; z += gridSize / scale) {
+      for (let z = -worldHeight; z <= worldHeight; z += gridSize) {
         ctx.beginPath();
-        ctx.moveTo(0, offsetY - z * scale);
-        ctx.lineTo(canvas.width, offsetY - z * scale);
+        const screen = worldToScreen(0, z);
+        ctx.moveTo(0, screen.y);
+        ctx.lineTo(canvas.width, screen.y);
         ctx.stroke();
       }
     }
 
-    // Redraw everything
+    function drawBounds() {
+      if (points.length < 3 || !enforceMinSize) return;
+
+      const bounds = getTrackBounds();
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxZ - bounds.minZ;
+
+      if (width < MIN_TRACK_WIDTH || height < MIN_TRACK_HEIGHT) {
+        ctx.strokeStyle = '#ff4444';
+        ctx.lineWidth = 2;
+        ctx.setLineDash([5, 5]);
+        ctx.beginPath();
+
+        const minScreen = worldToScreen(bounds.minX, bounds.minZ);
+        const maxScreen = worldToScreen(bounds.minX + MIN_TRACK_WIDTH, bounds.minZ + MIN_TRACK_HEIGHT);
+
+        ctx.rect(minScreen.x, minScreen.y, maxScreen.x - minScreen.x, maxScreen.y - minScreen.y);
+        ctx.stroke();
+        ctx.setLineDash([]);
+
+        // Draw warning text
+        ctx.fillStyle = '#ff4444';
+        ctx.font = '14px Arial';
+        ctx.fillText('TRACK TOO SMALL!', minScreen.x, minScreen.y - 10);
+      }
+    }
+
     function redraw() {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       drawGrid();
       drawCurve();
-      points.forEach((p, i) => drawPoint(p.x, p.z, i === draggingIndex));
+      drawBounds(); // Draw size bounds if needed
+
+      // Draw smoothed points (smaller)
+      if (enableSmoothing) {
+        smoothedPoints.forEach((p, i) => {
+          if (i > 0 && i < smoothedPoints.length - 1) {
+            drawPoint(p.x, p.z, false, false);
+          }
+        });
+      }
+
+      // Draw control points (larger)
+      points.forEach((p, i) => drawPoint(p.x, p.z, i === draggingIndex, true));
     }
 
-    // Mouse events for adding/dragging
+    function updateStatus() {
+      const status = document.getElementById('status');
+      const modeText =
+        mode === 'add' ? 'Add Points' :
+          mode === 'edit' ? 'Edit Points' :
+            mode === 'pan' ? 'Pan View' : 'Delete Points';
+
+      const bounds = getTrackBounds();
+      const width = bounds.maxX - bounds.minX;
+      const height = bounds.maxZ - bounds.minZ;
+
+      const sizeWarning = (enforceMinSize && (width < MIN_TRACK_WIDTH || height < MIN_TRACK_HEIGHT)) ? ' ⚠️ TOO SMALL' : '';
+
+      status.innerHTML = `Points: ${points.length} | Mode: ${modeText} | Zoom: ${scale.toFixed(1)}x | Smoothing: ${enableSmoothing ? 'Enabled' : 'Disabled'} | Bounds: ${width.toFixed(0)}x${height.toFixed(0)}${sizeWarning}`;
+    }
+
+    // --- MOUSE EVENT HANDLERS ---
     canvas.addEventListener('mousedown', (e) => {
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
-      const mouseZ = e.clientY - rect.top;
-      const worldX = (mouseX - offsetX) / scale;
-      const worldZ = (offsetY - mouseZ) / scale;
+      const mouseY = e.clientY - rect.top;
+      const world = screenToWorld(mouseX, mouseY);
+
+      if (mode === 'pan') {
+        isPanning = true;
+        panStartX = mouseX;
+        panStartY = mouseY;
+        canvas.style.cursor = 'grabbing';
+        return;
+      }
 
       if (mode === 'add') {
-        // Add new point
-        points.push({x: worldX, z: worldZ});
+        if (enableSnap) {
+          world.x = Math.round(world.x / 10) * 10; // Larger grid for bigger tracks
+          world.z = Math.round(world.z / 10) * 10;
+        }
+        points.push({ x: world.x, z: world.z });
+        updateSmoothedPoints();
       } else if (mode === 'edit') {
-        // Check if clicking on a point to drag (using pixel-based hit detection for accuracy)
         draggingIndex = -1;
         for (let i = 0; i < points.length; i++) {
-          const px = offsetX + points[i].x * scale;
-          const pz = offsetY - points[i].z * scale;
-          const dx = mouseX - px;
-          const dz = mouseZ - pz;
-          // 10-pixel hit radius
-          if (Math.sqrt(dx*dx + dz*dz) < 10) { 
+          const screen = worldToScreen(points[i].x, points[i].z);
+          const dx = mouseX - screen.x;
+          const dy = mouseY - screen.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 10) {
             draggingIndex = i;
             isDragging = true;
-            canvas.style.cursor = 'grabbing'; // Visual feedback
+            canvas.style.cursor = 'grabbing';
+            break;
+          }
+        }
+      } else if (mode === 'delete') {
+        for (let i = points.length - 1; i >= 0; i--) {
+          const screen = worldToScreen(points[i].x, points[i].z);
+          const dx = mouseX - screen.x;
+          const dy = mouseY - screen.y;
+          if (Math.sqrt(dx * dx + dy * dy) < 10) {
+            points.splice(i, 1);
+            updateSmoothedPoints();
             break;
           }
         }
       }
+
       redraw();
+      updateStatus();
     });
 
     canvas.addEventListener('mousemove', (e) => {
-      if (mode !== 'edit' || !isDragging || draggingIndex === -1) return;
       const rect = canvas.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
-      const mouseZ = e.clientY - rect.top;
-      const worldX = (mouseX - offsetX) / scale;
-      const worldZ = (offsetY - mouseZ) / scale;
+      const mouseY = e.clientY - rect.top;
+      const world = screenToWorld(mouseX, mouseY);
 
-      // Special handling for last point: Snap to first if close (within 0.1 units)
-      if (draggingIndex === points.length - 1 && points.length > 1) {
-        const dx = worldX - points[0].x;
-        const dz = worldZ - points[0].z;
-        if (Math.sqrt(dx*dx + dz*dz) < 0.1) {
-          points[draggingIndex].x = points[0].x;
-          points[draggingIndex].z = points[0].z;
-        } else {
-          points[draggingIndex].x = worldX;
-          points[draggingIndex].z = worldZ;
-        }
-      } else {
-        points[draggingIndex].x = worldX;
-        points[draggingIndex].z = worldZ;
+      // Update tooltip
+      tooltip.style.display = 'block';
+      tooltip.style.left = (e.clientX + 10) + 'px';
+      tooltip.style.top = (e.clientY + 10) + 'px';
+      tooltip.textContent = `X: ${world.x.toFixed(1)}, Z: ${world.z.toFixed(1)}`;
+
+      if (mode === 'pan' && isPanning) {
+        offsetX += mouseX - panStartX;
+        offsetY += mouseY - panStartY;
+        panStartX = mouseX;
+        panStartY = mouseY;
+        redraw();
+        return;
       }
-      redraw();
+
+      if (mode === 'edit' && isDragging && draggingIndex !== -1) {
+        if (enableSnap) {
+          world.x = Math.round(world.x / 10) * 10;
+          world.z = Math.round(world.z / 10) * 10;
+        }
+
+        // Snap last point to first for loop closure
+        if (draggingIndex === points.length - 1 && points.length > 1) {
+          const dx = world.x - points[0].x;
+          const dz = world.z - points[0].z;
+          if (Math.sqrt(dx * dx + dz * dz) < 5) { // Increased snap distance
+            points[draggingIndex].x = points[0].x;
+            points[draggingIndex].z = points[0].z;
+          } else {
+            points[draggingIndex].x = world.x;
+            points[draggingIndex].z = world.z;
+          }
+        } else {
+          points[draggingIndex].x = world.x;
+          points[draggingIndex].z = world.z;
+        }
+
+        updateSmoothedPoints();
+        redraw();
+      }
     });
 
     canvas.addEventListener('mouseup', () => {
-      if (isDragging) {
+      if (isDragging || isPanning) {
         isDragging = false;
-        canvas.style.cursor = mode === 'add' ? 'crosshair' : 'grab';
+        isPanning = false;
+        canvas.style.cursor =
+          mode === 'add' ? 'crosshair' :
+            mode === 'edit' ? 'grab' :
+              mode === 'pan' ? 'move' :
+                mode === 'delete' ? 'not-allowed' : 'default';
       }
     });
 
-    // Prevent dragging outside canvas
     canvas.addEventListener('mouseleave', () => {
       isDragging = false;
-      canvas.style.cursor = mode === 'add' ? 'crosshair' : 'grab';
+      isPanning = false;
+      tooltip.style.display = 'none';
     });
 
-    // Clear points
+    canvas.addEventListener('wheel', (e) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY > 0 ? 1 / 1.1 : 1.1;
+      zoom(zoomFactor);
+    });
+
+    canvas.addEventListener('contextmenu', (e) => {
+      e.preventDefault();
+      if (mode === 'edit') {
+        setMode('delete');
+        setTimeout(() => setMode('edit'), 100);
+      }
+    });
+
+    // --- UTILITY FUNCTIONS ---
     function clearPoints() {
       points = [];
+      smoothedPoints = [];
       redraw();
+      updateStatus();
     }
 
-    // Export as JS array for main sim
     function exportPoints() {
       if (points.length === 0) {
         alert('Add some points first!');
         return;
       }
-      const jsCode = `const trackPoints = [
+
+      // Warn if track is too small
+      if (enforceMinSize && !checkTrackSize()) {
+        const bounds = getTrackBounds();
+        const width = bounds.maxX - bounds.minX;
+        const height = bounds.maxZ - bounds.minZ;
+        if (!confirm(`Warning: Track is small (${width.toFixed(0)}x${height.toFixed(0)}). Minimum recommended: ${MIN_TRACK_WIDTH}x${MIN_TRACK_HEIGHT}. Export anyway?`)) {
+          return;
+        }
+      }
+
+      const jsCode = `// Generated Track Points
+const trackPoints = [
   ${points.map(p => `new THREE.Vector3(${p.x.toFixed(1)}, 0, ${p.z.toFixed(1)})`).join(',\n  ')}
-];`;
+];
+
+// For TrackBuilder.js use:
+loadTrackDefinition('Custom Track');
+generateTrackMesh(scene);`;
       document.getElementById('output').value = jsCode;
     }
 
-    // Initial load and draw
-    loadTrackList(); // Load track names on startup
-    loadTrack('Monza Standard'); // Load default track initially
+    // ADD THIS NEW FUNCTION FOR IMPORTING POINTS
+    function importPoints() {
+      const importText = prompt('Paste your track points array (THREE.Vector3 format):\nExample: new THREE.Vector3(108.5, 0, 57.9), new THREE.Vector3(102.0, 0, -30.0), ...');
+
+      if (!importText) return;
+
+      try {
+        // Parse the pasted points
+        const pointsArray = [];
+        const vectorRegex = /new THREE\.Vector3\(([^)]+)\)/g;
+        let match;
+
+        while ((match = vectorRegex.exec(importText)) !== null) {
+          const coords = match[1].split(',').map(coord => parseFloat(coord.trim()));
+          if (coords.length === 3) {
+            pointsArray.push({ x: coords[0], z: coords[2] }); // Use x and z coordinates
+          }
+        }
+
+        if (pointsArray.length > 0) {
+          points = pointsArray;
+          updateSmoothedPoints();
+          redraw();
+          updateStatus();
+          alert(`Successfully imported ${pointsArray.length} points!`);
+
+          // Auto-fit to view
+          fitToView();
+        } else {
+          alert('No valid points found in the input. Please check the format.');
+        }
+      } catch (error) {
+        alert('Error parsing points: ' + error.message);
+      }
+    }
+
+    // ADD THIS NEW FUNCTION FOR QUICK MONZA IMPORT
+    function importMonzaTrack() {
+      const monzaPoints = `new THREE.Vector3(372.2, 0, 173.0),
+  new THREE.Vector3(320.0, 0, 50.0),
+  new THREE.Vector3(250.0, 0, 0.0),
+  new THREE.Vector3(180.0, 0, -20.0),
+  new THREE.Vector3(100.0, 0, -30.0),
+  new THREE.Vector3(20.0, 0, -25.0),
+  new THREE.Vector3(-50.0, 0, 0.0),
+  new THREE.Vector3(-80.0, 0, 50.0),
+  new THREE.Vector3(-70.0, 0, 120.0),
+  new THREE.Vector3(-30.0, 0, 180.0),
+  new THREE.Vector3(50.0, 0, 200.0),
+  new THREE.Vector3(150.0, 0, 190.0),
+  new THREE.Vector3(217.7, 0, 201.6),
+  new THREE.Vector3(288.1, 0, 177.6),
+  new THREE.Vector3(372.2, 0, 173.0)`;
+
+      try {
+        const pointsArray = [];
+        const vectorRegex = /new THREE\.Vector3\(([^)]+)\)/g;
+        let match;
+
+        while ((match = vectorRegex.exec(monzaPoints)) !== null) {
+          const coords = match[1].split(',').map(coord => parseFloat(coord.trim()));
+          if (coords.length === 3) {
+            pointsArray.push({ x: coords[0], z: coords[2] });
+          }
+        }
+
+        if (pointsArray.length > 0) {
+          points = pointsArray;
+          updateSmoothedPoints();
+          redraw();
+          updateStatus();
+          alert(`Imported ${pointsArray.length} Monza track points!`);
+
+          // Auto-fit to view
+          fitToView();
+        }
+      } catch (error) {
+        alert('Error importing Monza track: ' + error.message);
+      }
+    }
+
+    // Initialize
+    loadTrackList();
+    loadTrack('Monza Standard');
+    updateSmoothedPoints();
+    fitToView(); // Auto-fit on load
     redraw();
-    
-    // Expose functions globally for HTML
+    updateStatus();
+
+    // Expose functions globally
     window.setMode = setMode;
     window.clearPoints = clearPoints;
     window.exportPoints = exportPoints;
     window.saveTrack = saveTrack;
     window.loadTrackList = loadTrackList;
     window.loadSelectedTrack = loadSelectedTrack;
-    window.zoom = zoom; // Expose the new zoom function
-
+    window.zoom = zoom;
+    window.resetView = resetView;
+    window.fitToView = fitToView;
+    window.scaleTrack = scaleTrack;
+    window.smoothTrack = smoothTrack;
+    window.toggleSmoothing = toggleSmoothing;
+    window.toggleSnap = toggleSnap;
+    window.toggleMinSize = toggleMinSize;
   </script>
 </body>
+
 </html>
